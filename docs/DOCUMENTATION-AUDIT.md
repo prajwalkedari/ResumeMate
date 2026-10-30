@@ -1,37 +1,57 @@
 # Documentation audit
 
-Discrepancies between documentation and implementation, as found on 2026-10-31. "Fixed" means this pass changed the code or docs. "Open" means a decision or source file is still needed. The archived `apps/web/docs/` files record findings from earlier sessions. Their statements about then-current state are historical, but their origin references now match the current configuration.
+Discrepancies between the documentation and the implementation. This version was updated during the domain and connection-check work. Status is **Fixed** when this work changed the code or docs, **Open** when a decision, a missing file, or the extension source is needed, and **Accepted** when the item is known and left as it is.
+
+## Website home and copy (from the earlier audit)
 
 | # | Where | Claim or gap | Reality | Status |
 | --- | --- | --- | --- | --- |
-| 1 | Extension manifest | Host access to the old root domain `prajwalkedari.tech` | Now `https://resumemate.prajwalkedari.tech/*` only | Fixed |
-| 2 | Extension bundles | Production origin the old root domain | All four bundles use `https://resumemate.prajwalkedari.tech` | Fixed (edited in the bundle, source missing) |
-| 3 | `/extension` page | "Check" only showed a notice; "Detection is not connected" | Runs a real `HELLO` handshake and shows verified states | Fixed |
-| 4 | Bridge `hello()` | Returned only `connected`, `busy`, or `not-detected`, and dropped the version | Returns a verified result with state, extension version, protocol, and code | Fixed |
-| 5 | `/extension` page | Simulated status switch and "Simulated, development only" badge | Removed | Fixed |
-| 6 | `/extension` page | "Install Extension" button only showed a notice | Links to the extension information page (`https://extension.prajwalkedari.tech`, not verified from here) | Fixed |
-| 7 | `/extension` page | "Generate resume" shown when connected, leading to a simulated screen | Removed | Fixed |
-| 8 | Extension `manifest.json` `content_scripts` | Matched the old root domain | Matches the exact production origin | Fixed |
-| 9 | Extension verifier | Warned that the production origin was not the intended one | Fails on a wrong origin; passes now | Fixed |
-| 10 | Documentation (all) | Mixed `prajwalkedari.tech`, `resume.prajwalkedari.tech`, and `resumemate.prajwalkedari.tech` | Standardised on `resumemate.prajwalkedari.tech`. The landing page `extension.prajwalkedari.tech` is kept as an external link. | Fixed |
-| 11 | `apps/web/tests/extension-bridge.test.ts` | Expected origin `prajwalkedari.tech` | Now `resumemate.prajwalkedari.tech`. The test still cannot run without the source. | Partly fixed (open: source missing) |
-| 12 | `docs/DEPLOYMENT.md` | Hosting unknown, no provider configured | Vercel, with root directory `apps/web`. Vercel settings are not configured yet, and no deployment has been verified. | Fixed (docs). Open: deployment itself. |
-| 13 | `docs/DEPLOYMENT.md` | Mentioned `NEXT_PUBLIC_SITE_URL` | The app reads `NEXT_PUBLIC_SITE_ORIGIN`. No new variable was added. | Fixed |
-| 14 | `apps/web/docs/INTEGRATION-STATUS.md` (archive) | Says the extension trusts only `prajwalkedari.tech` and the decision is open | Now the exact resumemate origin. The archived statements about the earlier state are kept as the findings at the time. | Partly fixed (historical record) |
-| 15 | Extension README | "Host access: the old root domain. The website origin is not yet resume.*" | Updated to the exact origin | Fixed |
-| 16 | `docs/TEST-REPORT.md` (previous version) | Stated the live handshake was untested with a real unpacked extension | Real unpacked bundle now tested in Chromium, both protocol-level (25) and page-level (10). Deployed site still untested. | Fixed (with the deployed-site caveat) |
-| 17 | Extension source | Absent | Absent. The four bundles are edited directly. | Open |
-| 18 | Deployed production site | Not reachable from the build sandbox | Unchanged | Open |
-| 19 | Users' installed extension | Old installs trust only the old root domain | Each user must reload or reinstall the extension | Open (user action) |
-| 20 | Next.js 14.2.35 | Advisories with fixes only in 15.5 or 16 | Unchanged | Open (framework decision) |
-| 21 | Extension `README.md` and `docs/ARCHITECTURE.md` | "Localhost origins only in development builds" | The shipped bundles contain no development origin. The development build path is in source not present here. | Open (cannot verify without source) |
-| 22 | Website `NEXT_PUBLIC_SITE_ORIGIN` | "Not read by any code yet" (earlier `.env.example`) | Read by `lib/site.ts` (SEO only). It is not used by the extension, which has its origin compiled in. | Fixed |
-| 23 | `/generate` page | Simulated timed progress and "Simulated progress complete" | Replaced with the real workflow through the verified bridge, with extension-aware states. No simulated progress. | Fixed |
-| 24 | `/extension` connected state | No next action after a verified connection | "Continue to Create Resume" primary button links to `/create`. Version and protocol come from the handshake. | Fixed |
-| 25 | Manual form Review | Went to `/extension` | Goes to `/generate`, which checks the connection itself | Fixed (behaviour change) |
-| 26 | Generated output | No place to show it | Shown for review on `/generate`. After acceptance it appears in a labelled "AI draft" section on `/preview`. It is not merged into resume fields. | Fixed (design deviation: not merged into resume fields; see docs/TEST-REPORT.md, remaining blockers) |
-| 27 | Output "Try again" | Did nothing while output was pending | Removed. Discard first, then start again. | Fixed |
-| 28 | Accepted output | Kept in state after saving | Cleared on accept | Fixed |
-| 29 | Generation browser test | None | `apps/extension/tests/generate-flow.e2e.js`, 24 checks with a fixture Gemini page | Added (fixture only) |
-| 30 | Live Gemini generation | Never tested | Still not tested. The fixture test is not evidence about the real Gemini page. | Open (blocker) |
-| 31 | `/generate` and `/preview` in the SEO doc | "Simulated progress screen" | Updated | Fixed |
+| 1 | Website home (`app/page.tsx`) | "Upload a PDF, DOCX, or TXT resume" | File import is not connected to the UI. Only library code exists. | Fixed (copy says "in development") |
+| 2 | Website home | "Talk through your background" as a working option | Voice input is simulated, with no microphone access. | Fixed |
+| 3 | Website home | "Download your PDF" | "Download PDF (demo)" creates no file. | Fixed |
+| 4 | Website home | "Built for applicant tracking systems" | No evidence. | Fixed (removed) |
+| 5 | Website home | "You can clear all data from the workspace" | No clear-data control exists. | Fixed (removed) |
+| 6 | Website home | "Your draft stays in this browser session" | Drafts are in memory only and are lost on reload. | Fixed |
+
+## Origin and connection (this work)
+
+| # | Where | Claim or gap | Reality | Status |
+| --- | --- | --- | --- | --- |
+| 7 | Extension bundles, manifest | Trusted only `https://prajwalkedari.tech` | Changed to `https://resumemate.prajwalkedari.tech` in four bundles and the manifest. | Fixed |
+| 8 | `verify-manifest.mjs` | Warned about the origin mismatch and passed | Fails on any origin other than the exact expected one. | Fixed |
+| 9 | `/extension` page | "No verified extension handshake yet" and a notification-only check; production showed "Not Installed" regardless | Runs a real handshake. Connected only after a verified reply. | Fixed |
+| 10 | `/extension` page | Simulation switch with "Simulated" badge | Removed. It could show a fake state. | Fixed |
+| 11 | Bridge client | Protocol version and extension version discarded from HELLO reply | `checkConnection()` returns and validates both. | Fixed |
+| 12 | Bridge client | A newer-protocol extension would appear as "not installed" | Envelope version mismatch is reported as incompatible. | Fixed |
+| 13 | `apps/web/tests/extension-bridge.test.ts` | Expects the extension source at `/home/claude/resumemate-extension/src` | Path does not exist. Cross-repo section cannot run. The client section passes. | Open (needs source) |
+| 14 | `apps/extension/package.json` | "TypeScript source is not included" | Accurate. The bundles are the only shipped code. | Open (needs source) |
+| 15 | `apps/extension/tests/bundle-protocol.e2e.js` | Stubbed the old origin, and set `channel: 'chromium'` only | Uses the new origin, adds negative cases, and accepts `RM_CHROMIUM_PATH`. | Fixed |
+
+## Build and environment
+
+| # | Where | Claim or gap | Reality | Status |
+| --- | --- | --- | --- | --- |
+| 16 | `apps/web/.env.example` | Listed `GEMINI_API_KEY` and `NEXT_PUBLIC_SITE_ORIGIN`; the README referred to the file | The file was not in the ZIP. Created with `NEXT_PUBLIC_SITE_ORIGIN` only, because that is the only variable the code reads. | Fixed |
+| 17 | `apps/web/README.md`, root README | "No variable is read by the code yet" | `NEXT_PUBLIC_SITE_ORIGIN` is read by `lib/site.ts`. | Fixed |
+| 18 | Web lint | `npm run lint` stopped at an interactive prompt | `.eslintrc.json` added (`next/core-web-vitals`). | Fixed |
+| 19 | Web tests | `npm test` did not run `extension-bridge.test.ts` | `extension-connection.test.ts` added to `npm test`. The cross-repo file still cannot run here. | Fixed (partly; see 13) |
+| 20 | `GEMINI_API_KEY` | Documented as reserved | Not read by any code. | Accepted (documented as reserved) |
+| 21 | `apps/web` dependencies | `npm audit` findings | 2 advisories (1 critical, 1 high) in PostCSS bundled with Next 14. The fix is Next 16. | Open (framework upgrade decision) |
+| 22 | `apps/extension` dependencies | None | `npm audit`: 0 vulnerabilities. | Fixed (none present) |
+
+## Generate flow
+
+| # | Where | Claim or gap | Reality | Status |
+| --- | --- | --- | --- | --- |
+| 23 | `/generate` page | "Simulating generation" with "Prototype: no request is sent" | Accurate, but the page is reachable from a connected `/extension` page through "Generate resume." | Open (product decision) |
+| 24 | `ExtensionBridge.prepare()` and `subscribe()` | Tested by unit tests | No page calls them. The generate flow is not implemented. | Open (feature not built) |
+
+## Other
+
+| # | Where | Claim or gap | Reality | Status |
+| --- | --- | --- | --- | --- |
+| 25 | Extension version | `0.1.0` in manifest and bundle | Unchanged. Bump before distributing a changed bundle. | Open (release decision) |
+| 26 | Root `docs/TEST-REPORT.md` | Previous results (43 tests, 22 browser checks) | Replaced with results from this session. | Fixed |
+| 27 | `docs/DEPLOYMENT.md` | Candidate origins (`resume.` or root domain) | One origin: `https://resumemate.prajwalkedari.tech`. | Fixed |
+| 28 | Extension origin in the bundle | "Changing it requires the extension source" | Changed in the bundles, verified by the verifier. Source still needed for future work. | Fixed (source still open, see 14) |
+| 29 | Handshake identity | Docs implied the handshake confirms the extension | It confirms protocol, origin, and request ID, not identity. | Fixed (documented in `SECURITY.md`); Open (needs extension ID) |

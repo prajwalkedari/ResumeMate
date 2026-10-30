@@ -3,13 +3,6 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
 import { emptyResume, type Resume, type TemplateId } from '@/lib/resume';
 
-/** Output the user accepted from the extension. Kept apart from the resume, which is never overwritten automatically. */
-export interface AiDraft {
-  text: string;
-  isLatex: boolean;
-  savedAt: number;
-}
-
 type AppState = {
   resume: Resume;
   setResume: (r: Resume) => void;
@@ -17,8 +10,6 @@ type AppState = {
   setTemplate: (t: TemplateId) => void;
   notify: (message: string) => void;
   reset: () => void;
-  aiDraft: AiDraft | null;
-  setAiDraft: (d: AiDraft | null) => void;
 };
 
 const AppContext = createContext<AppState | null>(null);
@@ -32,7 +23,6 @@ export function useApp(): AppState {
 export function Providers({ children }: { children: ReactNode }) {
   const [resume, setResume] = useState<Resume>(emptyResume);
   const [template, setTemplate] = useState<TemplateId>('classic');
-  const [aiDraft, setAiDraft] = useState<AiDraft | null>(null);
   const [message, setMessage] = useState('');
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -45,13 +35,12 @@ export function Providers({ children }: { children: ReactNode }) {
   const reset = useCallback(() => {
     setResume(emptyResume);
     setTemplate('classic');
-    setAiDraft(null);
     notify('Data cleared. Your draft is empty.');
   }, [notify]);
 
   const value = useMemo(
-    () => ({ resume, setResume, template, setTemplate, notify, reset, aiDraft, setAiDraft }),
-    [resume, template, notify, reset, aiDraft],
+    () => ({ resume, setResume, template, setTemplate, notify, reset }),
+    [resume, template, notify, reset],
   );
 
   return (

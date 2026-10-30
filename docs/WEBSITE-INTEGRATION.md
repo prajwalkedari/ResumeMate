@@ -1,85 +1,92 @@
 # Website and extension integration
 
-This describes the protocol as implemented in the shipped extension bundle (version 0.1.0) and the website bridge client (`apps/web/lib/extension-bridge.ts`). Each claim was checked in code or in Chromium. See `TEST-REPORT.md` for the exact runs.
-
-## Production origin
-
-The only website origin the extension trusts is **`https://resumemate.prajwalkedari.tech`**. It is set in:
-
-| File | Setting |
-| --- | --- |
-| `apps/extension/manifest.json` | `host_permissions` and the website content script `matches`: `https://resumemate.prajwalkedari.tech/*` |
-| `apps/extension/background/service-worker.js`, `content/resumemate.js`, `content/gemini.js`, `popup/main.js` | `PRODUCTION_WEBSITE_ORIGIN` (exact origin) |
-| `apps/web` build | `NEXT_PUBLIC_SITE_ORIGIN` (canonical URLs, sitemap). Set it to the same value. |
-
-No wildcard subdomains are trusted. The old root domain `https://prajwalkedari.tech` and any other subdomain get no reply. Development origins are not in production bundles. `npm run verify:manifest` checks all of this.
+This document describes the protocol as it is implemented in the shipped extension bundle and the website bridge client. Each claim below was checked against the code or in a browser run. See `TEST-REPORT.md` for the exact results.
 
 ## Envelope
+
+Every message is a `window.postMessage` object:
 
 ```json
 { "channel": "resumemate-web", "v": 1, "direction": "to-extension", "message": { "type": "HELLO", "requestId": "rm-..." } }
 ```
 
-Replies use `"direction": "to-page"`. Protocol version is `1`. A wrong channel, version, or direction gets no reply.
+Replies use `"direction": "to-page"`. The protocol version is `1`. The channel name and version must both match. The extension's `isBridgeEnvelope` check enforces this.
 
-## Connection check (`/extension` page)
+## Messages
 
-The page runs a check only when the user clicks **Check connection**, **Check again**, or **Retry**. It sends `HELLO` with no resume data.
-
-| Reply from the extension | Page state | Shown to the user |
+| Type | Sent by | Behavior (verified in Chromium) |
 | --- | --- | --- |
-| `CONNECTION_STATUS`, `connected: true`, `busy: false`, valid `protocolVersion` = 1 | `connected` | "ResumeMate Assistant is connected." Extension version and protocol shown. |
-| `CONNECTION_STATUS`, `connected: true`, `busy: true` | `busy` | "The extension is currently processing another request." |
-| `CONNECTION_STATUS` with `protocolVersion` other than 1 | `incompatible` | "Your extension version is incompatible. Please update it." Protocol versions shown. |
-| `CONNECTION_STATUS` missing a version field, or `connected` not true | `error` (code `MALFORMED_REPLY`) | "Unable to connect. Please try again." |
-| `ERROR` (for example `INTERNAL_ERROR` when the extension cannot respond) | `error` | "Unable to connect. Please try again." with the code |
-| No reply within 3 seconds | `not-installed` | "ResumeMate Assistant was not detected. Install the extension to continue." |
+| `HELLO` | Website | Replies `CONNECTION_STATUS` with `connected: true`, `busy`, `extensionVersion: "0.1.0"`, `protocolVersion: 1`. Carries no resume data. |
+| `PREPARE_PROMPT` | Website | Validates the payload. On success it sends `GEMINI_STATUS` (`awaiting-send-approval`) and then `REVIEW_PROMPT` (`awaiting-user-review`). On failure it sends `ERROR` with `INVALID_PAYLOAD`. |
+| `CANCEL_REQUEST` | Website | Cancels only a request started by the same tab, origin, and request ID. Replies `GEMINI_STATUS` (`cancelled`). For an unknown ID it replies `ERROR` `STALE_REQUEST`. |
+| `GEMINI_STATUS` | Extension | Progress updates. Sent before the final reply. |
+| `REVIEW_PROMPT` | Extension | The request is waiting for review. Nothing has been sent to Gemini. |
+| `GEMINI_RESPONSE`, `RETURN_OUTPUT` | Extension | Output for the website. Sent only after review. Not exercised in the browser run, because the Gemini page was not available. |
+| `ERROR` | Extension | Carries `code` and a message. Codes seen: `INVALID_PAYLOAD`, `STALE_REQUEST`, `INVALID_MESSAGE`. |
 
-The page reports **connected** only after a valid `CONNECTION_STATUS` with a matching request ID. The mere presence of a content script or a sent message does not count.
+Unknown types return `ERROR` `INVALID_MESSAGE`. A wrong version or channel gets no reply.
 
-Timeouts cannot tell "not installed", "disabled", and "not allowed on this origin" apart. The page therefore says "not detected" and points to the installation instructions and troubleshooting steps.
+## Ordering rule for clients
 
-### Expected extension identity
+The extension sends `GEMINI_STATUS` before `REVIEW_PROMPT`. A client must wait for the reply it needs, not the first message with its request ID.
 
-The protocol has no extension ID. A web page cannot read the ID of an installed extension, and the project does not invent one. The identity check is therefore: the reply comes from this window and origin, has the expected channel and version, and has the expected `CONNECTION_STATUS` fields. Stronger identity would need a protocol change and an extension ID, which is not yet available.
-
-## Other messages
-
-| Type | Behavior (verified in Chromium) |
-| --- | --- |
-| `PREPARE_PROMPT` | Validates the payload. On success sends `GEMINI_STATUS` (`awaiting-send-approval`), then `REVIEW_PROMPT`. On failure sends `ERROR` `INVALID_PAYLOAD`. Sends nothing to Gemini. |
-| `CANCEL_REQUEST` | Cancels only a request from the same tab and origin. Replies `GEMINI_STATUS` `cancelled`. An unknown ID gets `ERROR` `STALE_REQUEST`. |
-| `GEMINI_STATUS`, `REVIEW_PROMPT` | Progress and review state. |
-| `GEMINI_RESPONSE`, `RETURN_OUTPUT` | Output for the website, sent only after review. Not exercised live. |
-| `ERROR` | Carries `code` and a message. Codes seen: `INVALID_PAYLOAD`, `STALE_REQUEST`, `INVALID_MESSAGE`, `INTERNAL_ERROR`. |
-
-Clients must wait for the reply they need. The extension sends progress before the final reply. `prepare()` and `hello()` in the bridge handle this.
+This rule was broken in the website bridge until the fix recorded in `TEST-REPORT.md` (section "Bug found and fixed"). The old `prepare()` accepted the first reply, so a request the extension had accepted was reported to the user as failed. `apps/web/tests/bridge-progress.test.ts` covers this.
 
 ## Payload limits
+
+Enforced by both sides, and tested to match:
 
 | Limit | Value |
 | --- | --- |
 | Resume text | 40 to 20,000 characters |
 | Job description | up to 10,000 characters |
 | Custom instructions | up to 1,000 characters |
-| Prompt for review | up to 60,000 characters |
+| Prompt sent for review | up to 60,000 characters |
 | Output | up to 60,000 characters |
+
+The website serializes the structured resume into plain text. Empty fields are omitted. `tailor` requires a job description, and the website rejects an empty one before sending.
+
+## Connection check
+
+The `/extension` page runs this check when the user clicks **Check connection** or **Try again**. It sends one message:
+
+`{ channel: 'resumemate-web', v: 1, direction: 'to-extension', message: { type: 'HELLO', requestId } }`
+
+The message holds only a type and a request ID. The extension answers with `CONNECTION_STATUS` and its own version and protocol. The page reports a state based on that reply:
+
+| State | Condition |
+| --- | --- |
+| Connected | A `CONNECTION_STATUS` reply for this request, protocol version 1, `connected: true`, and a plausible extension version. |
+| Busy | The same reply with `busy: true`, meaning the extension has a request in progress. |
+| Incompatible | The protocol version differs from 1, or the reply came in an envelope with a different version. |
+| Not installed | No reply within 3 seconds. This also covers a disabled extension and a page opened before the extension was installed. |
+| Error | An `ERROR` reply, or a `CONNECTION_STATUS` that is not usable. |
+
+A reply counts only if it comes from this page's origin, is a message from this window, and carries a request ID this page created. A page that has not been checked shows **Not checked**, not a connected state.
+
+## Origin and sender
+
+- The extension accepts messages only from `PRODUCTION_WEBSITE_ORIGIN` (`https://resumemate.prajwalkedari.tech`) and from development origins injected at build time. The shipped bundle has no development origin.
+- The extension's content script runs only on `https://resumemate.prajwalkedari.tech/*`, the manifest match. The root domain and other subdomains receive no content script and no reply.
+- The website checks `event.origin` and `event.source === window` for every reply, and only accepts replies for request IDs it created.
 
 ## Approval gates
 
-1. The handshake and `PREPARE_PROMPT` send no user content to Gemini.
-2. The user reviews the prompt in the extension popup and approves it.
-3. Submission is a separate confirmation step.
+1. Preparing a prompt does not send anything to Gemini.
+2. The user reviews the prompt in the popup and approves it. Only then does the extension place it in the Gemini tab.
+3. Submission is a separate confirmation step (`POPUP_CONFIRM_SUBMIT`).
 4. Output is returned to the website only after review.
 
-The steps through output review run in Chromium against a fixture Gemini page (`apps/extension/tests/generate-flow.e2e.js`, 24 of 24). They have not been run against a live Gemini page.
+Steps 2 and 3 are implemented in the bundle. Steps 2 and 3 were not run against live Gemini. The browser test confirmed that preparing and cancelling never contact `gemini.google.com`.
 
-## Verification status
+## What is verified and what is not
 
-| Check | Status |
-| --- | --- |
-| Website bridge logic (state mapping, ordering, malformed replies) | Unit tests, passing |
-| Protocol against the real unpacked bundle (25 checks, stubbed origins) | Chromium fixture test, passing |
-| `/extension` page against the real unpacked bundle, served locally under the production hostname (10 checks) | Chromium test, passing. This is a **local** build, not the deployed site. |
-| Deployed production site at `https://resumemate.prajwalkedari.tech` | **Not tested.** The host did not respond from the build sandbox. |
-| Live Gemini | **Not tested.** |
+Verified in Chromium with the unpacked bundle and the production build of `/extension` (fixture routing, no live DNS): the connected, busy, not-installed, and wrong-origin states; the reconnect after refresh; the request-ID and origin checks; and the mobile layout. See `docs/TEST-REPORT.md`.
+
+Not verified:
+
+- A live handshake between the deployed website and an installed extension. The production site did not respond from the build sandbox.
+- The identity of the responder. The website checks the protocol, origin, and request ID, not who sent the reply. See `docs/SECURITY.md`.
+- The incompatible state against a real newer extension. It is covered by unit tests with simulated replies.
+- Resume generation through Gemini. The `/generate` page is a simulation, and the bridge's `prepare()` is not connected to any page.
+- Gemini submission and response capture against the live Gemini page.

@@ -7,6 +7,12 @@ import { validateResume, type Fields, type Resume } from './resume';
 export const BRIDGE_CHANNEL = 'resumemate-web' as const;
 export const BRIDGE_VERSION = 1 as const;
 
+// The only origin the extension is built to talk to in production. The extension's manifest and
+// bundled allow-list must use the same value; a web test checks that against apps/extension.
+export const EXTENSION_SUPPORTED_ORIGIN = 'https://resumemate.prajwalkedari.tech' as const;
+// Installation and information page for the extension.
+export const EXTENSION_INFO_URL = 'https://extension.prajwalkedari.tech' as const;
+
 // Must match the extension's LIMITS (src/shared/constants.ts). The cross-repo test checks this.
 export const BRIDGE_LIMITS = {
   minResumeChars: 40,
@@ -184,59 +190,78 @@ export interface BridgeHost {
   isOwnWindow(source: unknown): boolean;
 }
 
-/**
- * Result of a handshake. `connected` and `busy` are reported only after a valid CONNECTION_STATUS
- * reply from the extension, with a matching request ID and protocol version.
- * `not-installed` means no reply arrived before the timeout. The extension may be missing,
- * disabled, or not allowed on this origin. The page cannot tell these apart.
- */
-export type HelloState = 'connected' | 'busy' | 'not-installed' | 'incompatible' | 'error';
-export interface HelloResult {
-  state: HelloState;
-  /** Set only from a verified CONNECTION_STATUS reply. */
-  extensionVersion: string | null;
-  /** Set only from a verified CONNECTION_STATUS reply. */
-  protocolVersion: number | null;
-  /** Error code from an ERROR reply, when there is one. */
-  code: string | null;
+/** Outcome of a connection check. Only "connected" and "busy" mean a verified extension answered. */
+export type ConnectionOutcome =
+  | { state: 'connected'; extensionVersion: string; protocolVersion: number }
+  | { state: 'busy'; extensionVersion: string; protocolVersion: number }
+  | { state: 'incompatible'; extensionVersion: string | null; protocolVersion: number | null; message: string }
+  | { state: 'not-detected' }
+  | { state: 'error'; code: string; message: string };
+
+export type HelloResult = ConnectionOutcome['state'];
+
+export const INCOMPATIBLE_MESSAGE = 'Your extension version is incompatible. Please update it.';
+
+// Internal, never sent by the extension: a reply whose envelope version differs from ours.
+// It is delivered only to the waiter for the matching request ID, so a newer extension is reported
+// as incompatible instead of looking like a missing extension.
+const PROTOCOL_MISMATCH = 'PROTOCOL_MISMATCH' as const;
+const VERSION_PATTERN = /^[0-9A-Za-z.+-]{1,32}$/;
+
+export interface VersionMismatch {
+  type: typeof PROTOCOL_MISMATCH;
+  requestId: string;
+  envelopeVersion: unknown;
 }
 
-/** Turns a reply to HELLO into a verified result. Exported so it can be tested without a browser. */
-export function interpretHelloReply(reply: BridgeReply | null): HelloResult {
-  if (reply === null) {
-    return { state: 'not-installed', extensionVersion: null, protocolVersion: null, code: 'TIMEOUT' };
-  }
-  if (reply.type === 'CONNECTION_STATUS') {
-    const version = typeof reply.extensionVersion === 'string' ? reply.extensionVersion : null;
-    const protocol = typeof reply.protocolVersion === 'number' ? reply.protocolVersion : null;
-    if (version === null || protocol === null || reply.connected !== true) {
-      return { state: 'error', extensionVersion: null, protocolVersion: null, code: 'MALFORMED_REPLY' };
-    }
-    if (protocol !== BRIDGE_VERSION) {
-      return { state: 'incompatible', extensionVersion: version, protocolVersion: protocol, code: 'PROTOCOL_MISMATCH' };
-    }
-    return {
-      state: reply.busy === true ? 'busy' : 'connected',
-      extensionVersion: version,
-      protocolVersion: protocol,
-      code: null,
-    };
+/** Recognises a CONNECTION_STATUS reply that carries a different envelope version. Returns null otherwise. */
+export function parseVersionMismatch(data: unknown): VersionMismatch | null {
+  if (typeof data !== 'object' || data === null) return null;
+  const d = data as Record<string, unknown>;
+  if (d.channel !== BRIDGE_CHANNEL || d.v === BRIDGE_VERSION || d.direction !== 'to-page') return null;
+  if (typeof d.message !== 'object' || d.message === null) return null;
+  const msg = d.message as Record<string, unknown>;
+  if (msg.type !== 'CONNECTION_STATUS' || typeof msg.requestId !== 'string') return null;
+  return { type: PROTOCOL_MISMATCH, requestId: msg.requestId, envelopeVersion: d.v };
+}
+
+/** Turns the extension's reply to HELLO into a verified outcome. Anything unexpected is not "connected". */
+const isVersionMismatch = (reply: BridgeReply | VersionMismatch): reply is VersionMismatch => reply.type === PROTOCOL_MISMATCH;
+
+export function interpretHelloReply(reply: BridgeReply | VersionMismatch | null): ConnectionOutcome {
+  if (reply === null) return { state: 'not-detected' };
+  if (isVersionMismatch(reply)) {
+    return { state: 'incompatible', extensionVersion: null, protocolVersion: null, message: INCOMPATIBLE_MESSAGE };
   }
   if (reply.type === 'ERROR') {
     return {
       state: 'error',
-      extensionVersion: null,
-      protocolVersion: null,
       code: typeof reply.code === 'string' ? reply.code : 'INTERNAL_ERROR',
+      message: 'Unable to connect. Please try again.',
     };
   }
-  return { state: 'error', extensionVersion: null, protocolVersion: null, code: 'UNEXPECTED_REPLY' };
+  if (reply.type !== 'CONNECTION_STATUS') {
+    return { state: 'error', code: 'UNEXPECTED_REPLY', message: 'Unable to connect. Please try again.' };
+  }
+  const extensionVersion = typeof reply.extensionVersion === 'string' && VERSION_PATTERN.test(reply.extensionVersion)
+    ? reply.extensionVersion
+    : null;
+  const protocolVersion = typeof reply.protocolVersion === 'number' ? reply.protocolVersion : null;
+  if (protocolVersion !== BRIDGE_VERSION) {
+    return { state: 'incompatible', extensionVersion, protocolVersion, message: INCOMPATIBLE_MESSAGE };
+  }
+  if (reply.connected !== true || extensionVersion === null) {
+    return { state: 'error', code: 'BAD_STATUS', message: 'Unable to connect. Please try again.' };
+  }
+  if (reply.busy === true) return { state: 'busy', extensionVersion, protocolVersion };
+  return { state: 'connected', extensionVersion, protocolVersion };
 }
 export type PrepareResult =
   | { ok: true; requestId: string }
   | { ok: false; code: string; message: string };
 
 type Listener = (reply: BridgeReply) => void;
+type Waiter = (reply: BridgeReply | VersionMismatch) => boolean;
 
 /**
  * Client for the extension. Only replies for request IDs this client created are delivered,
@@ -244,11 +269,19 @@ type Listener = (reply: BridgeReply) => void;
  */
 export class ExtensionBridge {
   private readonly sent = new Set<string>();
-  private readonly waiters = new Map<string, (reply: BridgeReply) => void>();
+  private readonly waiters = new Map<string, Waiter>();
   private readonly listeners = new Set<Listener>();
 
   private readonly onMessage = (event: { source: unknown; origin: string; data: unknown }) => {
     if (!this.host.isOwnWindow(event.source) || event.origin !== this.host.origin) return;
+    const mismatch = parseVersionMismatch(event.data);
+    if (mismatch) {
+      if (this.sent.has(mismatch.requestId)) {
+        const waiter = this.waiters.get(mismatch.requestId);
+        if (waiter && waiter(mismatch)) this.waiters.delete(mismatch.requestId);
+      }
+      return;
+    }
     const reply = parseBridgeEnvelope(event.data);
     if (!reply) return;
     if (reply.requestId === null || !this.sent.has(reply.requestId)) return;
@@ -276,8 +309,8 @@ export class ExtensionBridge {
   private awaitReply(
     requestId: string,
     timeoutMs: number,
-    accept: (reply: BridgeReply) => boolean,
-  ): Promise<BridgeReply | null> {
+    accept: (reply: BridgeReply | VersionMismatch) => boolean,
+  ): Promise<BridgeReply | VersionMismatch | null> {
     return new Promise((resolve) => {
       const timer = setTimeout(() => {
         this.waiters.delete(requestId);
@@ -293,22 +326,31 @@ export class ExtensionBridge {
     });
   }
 
-  /** Checks the connection. Sends no resume data. */
-  async hello(timeoutMs = 3000): Promise<HelloResult> {
+  /**
+   * Checks the connection with a HELLO message. Sends no resume data. Reports "connected" or "busy"
+   * only after a CONNECTION_STATUS reply with a matching protocol version arrives for this request.
+   */
+  async checkConnection(timeoutMs = 3000): Promise<ConnectionOutcome> {
     const requestId = createRequestId();
     this.sent.add(requestId);
     this.send({ type: 'HELLO', requestId });
-    const reply = await this.awaitReply(requestId, timeoutMs, (r) => r.type === 'CONNECTION_STATUS' || r.type === 'ERROR');
+    const reply = await this.awaitReply(
+      requestId,
+      timeoutMs,
+      (r) => r.type === 'CONNECTION_STATUS' || r.type === 'ERROR' || r.type === PROTOCOL_MISMATCH,
+    );
     this.sent.delete(requestId);
-    return interpretHelloReply(reply);
+    return interpretHelloReply(reply as BridgeReply | VersionMismatch | null);
+  }
+
+  /** Same check as checkConnection, reduced to a state name. */
+  async hello(timeoutMs = 3000): Promise<HelloResult> {
+    return (await this.checkConnection(timeoutMs)).state;
   }
 
   /** Queues a request for the user to review inside the extension. Nothing reaches Gemini here. */
-  /**
-   * Queues a request for review. The caller may pass its own request ID so that replies which
-   * arrive before this call returns (GEMINI_STATUS progress) can be matched to the request.
-   */
-  async prepare(payload: ExtensionRequestPayload, timeoutMs = 5000, requestId: string = createRequestId()): Promise<PrepareResult> {
+  async prepare(payload: ExtensionRequestPayload, timeoutMs = 5000): Promise<PrepareResult> {
+    const requestId = createRequestId();
     this.sent.add(requestId);
     this.send({ type: 'PREPARE_PROMPT', requestId, payload });
     // GEMINI_STATUS "awaiting-send-approval" arrives before REVIEW_PROMPT; it is progress, not the answer.
@@ -316,6 +358,10 @@ export class ExtensionBridge {
     if (!reply) {
       this.sent.delete(requestId);
       return { ok: false, code: 'TIMEOUT', message: 'The extension did not respond. Check that it is installed and enabled.' };
+    }
+    if (isVersionMismatch(reply)) {
+      this.sent.delete(requestId);
+      return { ok: false, code: 'INCOMPATIBLE', message: INCOMPATIBLE_MESSAGE };
     }
     if (reply.type === 'REVIEW_PROMPT') return { ok: true, requestId };
     this.sent.delete(requestId);

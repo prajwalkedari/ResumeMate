@@ -4,7 +4,7 @@
 // arrives before the REVIEW_PROMPT reply.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ExtensionBridge, BRIDGE_CHANNEL, BRIDGE_VERSION, interpretHelloReply, type BridgeHost, type BridgeReply } from '../lib/extension-bridge';
+import { ExtensionBridge, BRIDGE_CHANNEL, BRIDGE_VERSION, type BridgeHost } from '../lib/extension-bridge';
 
 type Listener = (event: { source: unknown; origin: string; data: unknown }) => void;
 const WIN = { name: 'window' };
@@ -87,51 +87,7 @@ describe('hello() never sends resume data', () => {
     const requestId = sent[0].message.requestId;
     assert.deepEqual(Object.keys(sent[0].message).sort(), ['requestId', 'type']);
     deliver(reply({ type: 'CONNECTION_STATUS', requestId, connected: true, busy: false, extensionVersion: '0.1.0', protocolVersion: 1 }));
-    assert.deepEqual(await pending, { state: 'connected', extensionVersion: '0.1.0', protocolVersion: 1, code: null });
+    assert.equal(await pending, 'connected');
     bridge.dispose();
-  });
-
-  it('reports not-installed when no reply arrives before the timeout', async () => {
-    const { host } = makeHost();
-    const bridge = new ExtensionBridge(host);
-    const result = await bridge.hello(30);
-    assert.equal(result.state, 'not-installed');
-    assert.equal(result.extensionVersion, null);
-    bridge.dispose();
-  });
-});
-
-describe('interpretHelloReply: only a valid CONNECTION_STATUS counts as verified', () => {
-  const status = (extra: Record<string, unknown> = {}): BridgeReply => ({
-    type: 'CONNECTION_STATUS', requestId: 'rm-x', connected: true, busy: false,
-    extensionVersion: '0.1.0', protocolVersion: 1, ...extra,
-  });
-
-  it('connected for a valid, idle reply', () => {
-    assert.equal(interpretHelloReply(status()).state, 'connected');
-  });
-  it('busy when the extension has an active request', () => {
-    assert.equal(interpretHelloReply(status({ busy: true })).state, 'busy');
-  });
-  it('incompatible when the protocol version differs, and keeps the reported versions', () => {
-    const r = interpretHelloReply(status({ protocolVersion: 2 }));
-    assert.equal(r.state, 'incompatible');
-    assert.equal(r.protocolVersion, 2);
-    assert.equal(r.extensionVersion, '0.1.0');
-  });
-  it('error (malformed) for a reply missing the protocol version, never connected', () => {
-    const r = interpretHelloReply(status({ protocolVersion: undefined }));
-    assert.equal(r.state, 'error');
-    assert.equal(r.code, 'MALFORMED_REPLY');
-  });
-  it('error (malformed) when connected is not true', () => {
-    assert.equal(interpretHelloReply(status({ connected: false })).state, 'error');
-  });
-  it('error for an ERROR reply, with its code', () => {
-    const r = interpretHelloReply({ type: 'ERROR', requestId: 'rm-x', code: 'INTERNAL_ERROR', message: 'x' });
-    assert.deepEqual([r.state, r.code], ['error', 'INTERNAL_ERROR']);
-  });
-  it('not-installed when there is no reply', () => {
-    assert.equal(interpretHelloReply(null).state, 'not-installed');
   });
 });

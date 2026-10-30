@@ -1,79 +1,61 @@
 # Deployment
 
-The website is hosted on **Vercel**. This repository contains no Vercel-specific file. Vercel detects Next.js from `apps/web/package.json`.
+**No hosting provider is configured in this repository.** The archive contains no `vercel.json`, `netlify.toml`, `wrangler.toml`, `Dockerfile`, or CI deploy step. Nothing has been deployed, and nothing has been published.
 
-Nothing in this repository has been deployed, and DNS has not been changed. The production site was **not reachable** from the build sandbox, so deployment status is unverified.
+## Website (`apps/web`)
 
-## Website on Vercel
+Requirements: Node.js 22 LTS. The site is Next.js 14.2.35 with the App Router. It needs a Node runtime (`next start`) or a platform that runs Next.js 14. Static-only hosting is not enough once the Gemini route and compile service exist.
 
-### Project settings
+```bash
+cd apps/web
+npm ci
+NEXT_PUBLIC_SITE_ORIGIN=https://<confirmed-origin> npm run build
+npm run start            # serves on port 3000 by default
+```
 
 | Setting | Value |
 | --- | --- |
-| Framework preset | Next.js (detected) |
-| Root directory | `apps/web` |
-| Install command | `npm ci` |
-| Build command | `npm run build` |
-| Output | Next.js default (`.next`). Do not set a custom output directory. |
-| Node.js version | 22.x |
-| Production domain | `resumemate.prajwalkedari.tech` |
+| Install | `npm ci` (uses `package-lock.json`) |
+| Build | `npm run build` |
+| Output | `.next/` (Node server, not `out/`) |
+| Start | `npm run start` |
+| Public origin | `NEXT_PUBLIC_SITE_ORIGIN`, read at build time. Set it to the confirmed production origin. If unset, canonical URLs, the sitemap, and the robots sitemap line are omitted. |
+| SPA fallback | Not applicable. Routing is handled by Next.js. |
 
-### Environment variables
+Before going live:
 
-| Name | Environment | Value | Used by |
-| --- | --- | --- | --- |
-| `NEXT_PUBLIC_SITE_ORIGIN` | Production | `https://resumemate.prajwalkedari.tech` | `apps/web/lib/site.ts`: canonical URLs, Open Graph URL, sitemap, robots.txt |
+1. The production origin is `https://resumemate.prajwalkedari.tech`. Use this one value everywhere: `NEXT_PUBLIC_SITE_ORIGIN` in the Vercel production environment, the extension manifest and bundled allow-list, and the DNS record you create.
+2. The extension bundle already uses that origin. A website on any other origin will not connect. Redeploy the website after setting the variable, because it is read at build time.
+3. Decide on the Next.js upgrade. `npm audit` reports advisories that only have fixes in Next.js 15.5 or 16. See `TEST-REPORT.md`.
 
-`NEXT_PUBLIC_*` values are read at build time. After you add or change this variable, **redeploy** so the new build includes it. Do not add `NEXT_PUBLIC_SITE_URL`. The app does not read it.
+## Extension (`apps/extension`)
 
-Never add a secret with the `NEXT_PUBLIC_` prefix. `GEMINI_API_KEY` is reserved for a future server route and is not read yet.
-
-### Steps
-
-1. In Vercel, import the repository `Prajwalkedari/resumemate` (the repository link is not verified from here). Set the root directory to `apps/web`.
-2. Add `NEXT_PUBLIC_SITE_ORIGIN` for the Production environment.
-3. Add `resumemate.prajwalkedari.tech` under the project's domains, and follow Vercel's DNS instructions. This is your action. The repository does not change DNS.
-4. Deploy. Then check the live site:
-   - `https://resumemate.prajwalkedari.tech/robots.txt` lists `Sitemap: https://resumemate.prajwalkedari.tech/sitemap.xml`.
-   - `https://resumemate.prajwalkedari.tech/extension` shows the idle connection state.
-   - `/create`, `/generate`, and `/preview` send `noindex`.
-5. Test the handshake with the extension installed. See the checklist below.
-
-### Rollback
-
-Use Vercel's deployment list and promote the previous production deployment. Do not force-push the repository as part of a rollback.
-
-## Extension
-
-The extension is `apps/extension` version 0.1.0 (Manifest V3). Its TypeScript source is **not in this repository**. The bundle can be changed only by editing the built files, and those edits must be reproduced in the source when it is recovered.
-
-### Build and package
+The extension is distributed as an unpacked or packed bundle. The Chrome Web Store is not configured.
 
 ```bash
 cd apps/extension
-npm install
-npm run verify:manifest     # must print PASS and the production origin
-npm run package             # writes dist/resumemate-assistant-0.1.0.zip
+npm run verify:manifest
+npm run package          # dist/resumemate-assistant-0.1.0.zip
 ```
 
-### Install or update in Chrome
+Installing from the zip: upload to the Chrome Web Store developer dashboard, or load the unpacked folder in `chrome://extensions` (Developer mode). The `extension.prajwalkedari.tech` landing page explains installation. It does not install the extension.
 
-- **Unpacked (development or testing):** open `chrome://extensions`, turn on Developer mode, choose **Load unpacked**, and select `apps/extension`. To update, click the reload icon on the card after changing files.
-- **Store (not set up yet):** upload the new zip to the Chrome Web Store developer dashboard. Chrome asks users to approve new permissions when an update adds host access.
+Updating an unpacked install: open `chrome://extensions` and click reload on ResumeMate Assistant. Then reload the ResumeMate tab, because content scripts load only when a page loads.
 
-Because the host permissions changed to `https://resumemate.prajwalkedari.tech/*`, **every user must update or reinstall the extension** before the new website can connect. Until they do, the old bundle only trusts `https://prajwalkedari.tech`, and the new site will show "not detected".
+The origin lives in four bundle files and the manifest. The extension source is not in this repository. Changes to the origin are made in the bundles and checked by `npm run verify:manifest`. Recover the source before the next release.
 
-### Versioning
+Versioning: `manifest.json` version `0.1.0` must match `package.json`. Increase both for each release.
 
-Keep `manifest.json` `version` and `package.json` `version` in step. Increase both for every release.
+## Rollback
 
-### Rollback
+- **Website:** redeploy the previous build from git (`git checkout <tag>`, then `npm ci && npm run build`). Provider-specific rollback is not documented, because no provider is chosen.
+- **Extension:** keep the previous `.zip` in releases. Re-submit it to the store or re-load it unpacked.
 
-Keep the previous zip. To roll back, reinstall it, or reload the previous unpacked folder.
+## Domains
 
-## Checklist after deploying
+- `resumemate.prajwalkedari.tech` and `extension.prajwalkedari.tech` did not respond from the build sandbox. This does not prove they are down. DNS and the Vercel domain are deployment steps, not code changes. Confirm them from a normal network before relying on the site.
 
-1. Website: open `https://resumemate.prajwalkedari.tech/extension` in a normal browser.
-2. Extension installed and enabled, updated to 0.1.0 with the new origin: click **Check connection**. Expected: "ResumeMate Assistant is connected." with version 0.1.0 and protocol v1.
-3. Extension not installed: click **Check connection**. Expected: "was not detected", with the installation link.
-4. Record the date and result in `docs/TEST-REPORT.md`. Do not record a live pass until it was done against the deployed site.
+## Secrets
+
+- Never use the `NEXT_PUBLIC_` prefix for a secret.
+- `GEMINI_API_KEY` is reserved for a future server route. It is server-only.

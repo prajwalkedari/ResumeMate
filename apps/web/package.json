@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/bridge-progress.test.ts tests/bridge-subscribe.test.ts tests/generation.test.ts tests/pdf-latex-import.test.ts"
+    "test": "tsx --test tests/bridge-progress.test.ts tests/pdf-latex-import.test.ts tests/extension-connection.test.ts"
   },
   "dependencies": {
     "lucide-react": "0.441.0",

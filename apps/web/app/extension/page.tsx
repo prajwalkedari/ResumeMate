@@ -1,96 +1,125 @@
 'use client';
 
-import { useState } from 'react';
-import { CircleCheck, Puzzle, TriangleAlert, Unplug, CircleHelp, ArrowRight } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { CircleCheck, Clock, Loader2, Puzzle, TriangleAlert, Unplug } from 'lucide-react';
 import { Header, Button, LinkButton } from '@/components/ui';
-import { createBrowserBridge, BRIDGE_VERSION, type HelloResult } from '@/lib/extension-bridge';
+import {
+  createBrowserBridge,
+  EXTENSION_INFO_URL,
+  EXTENSION_SUPPORTED_ORIGIN,
+  type ConnectionOutcome,
+  type ExtensionBridge,
+} from '@/lib/extension-bridge';
 
-// Installation and information page for the extension. It is an external link, not the messaging origin.
-const EXTENSION_INFO_URL = 'https://extension.prajwalkedari.tech';
+// 'unchecked' is the state before the user runs the first check. It is not a result.
+type UiState = 'unchecked' | 'checking' | 'connected' | 'busy' | 'not-installed' | 'incompatible' | 'error';
 
-type UiState = 'idle' | 'checking' | 'connected' | 'busy' | 'not-installed' | 'incompatible' | 'error';
-
-const COPY: Record<UiState, { label: string; title: string; body: string }> = {
-  idle: {
+const COPY: Record<UiState, { label: string; headline: string; body: string }> = {
+  unchecked: {
     label: 'Not checked',
-    title: 'Check the connection',
-    body: 'Press Check connection to see whether the ResumeMate Assistant extension is installed, enabled, and reachable from this page.',
+    headline: 'Check the connection',
+    body: 'Check whether ResumeMate Assistant is installed and can be reached from this page. The check sends no resume data.',
   },
   checking: {
     label: 'Checking',
-    title: 'Checking ResumeMate Assistant...',
-    body: 'Waiting for the extension to reply.',
+    headline: 'Checking ResumeMate Assistant...',
+    body: 'This usually takes a second or two.',
   },
   connected: {
     label: 'Connected',
-    title: 'ResumeMate Assistant is connected.',
-    body: 'Your browser extension is ready. You can now create a resume using your existing Gemini account. You approve each request in the extension before anything is sent.',
+    headline: 'ResumeMate Assistant is connected.',
+    body: 'The extension answered this page. You still approve each request before anything is sent.',
   },
   busy: {
     label: 'Busy',
-    title: 'The extension is currently processing another request.',
-    body: 'It is connected. Finish or cancel the request in the extension, then check again.',
+    headline: 'The extension is currently processing another request.',
+    body: 'Finish or cancel the other request in the extension, then check again.',
   },
   'not-installed': {
-    label: 'Not detected',
-    title: 'ResumeMate Assistant was not detected. Install the extension to continue.',
-    body: 'No reply arrived. The extension may not be installed, may be turned off, or may not be allowed on this website.',
+    label: 'Not installed',
+    headline: 'ResumeMate Assistant was not detected. Install the extension to continue.',
+    body: 'If you have just installed or enabled it, reload this page and check again.',
   },
   incompatible: {
     label: 'Incompatible',
-    title: 'Your extension version is incompatible. Please update it.',
-    body: 'The extension replied, but it uses a different protocol version from this website.',
+    headline: 'Your extension version is incompatible. Please update it.',
+    body: 'The installed extension does not use the protocol this website needs. Update it, then reload this page.',
   },
   error: {
     label: 'Error',
-    title: 'Unable to connect. Please try again.',
-    body: 'The extension replied with an error or an unexpected message.',
+    headline: 'Unable to connect. Please try again.',
+    body: 'The extension did not return a valid response. Try again. If this keeps happening, reload this page.',
   },
 };
 
 const ICON: Record<UiState, typeof Puzzle> = {
-  idle: CircleHelp,
-  checking: Puzzle,
+  unchecked: Puzzle,
+  checking: Loader2,
   connected: CircleCheck,
-  busy: TriangleAlert,
+  busy: Clock,
   'not-installed': Puzzle,
   incompatible: TriangleAlert,
-  error: Unplug,
+  error: TriangleAlert,
 };
 
-const ERROR_HINTS: Record<string, string> = {
-  TIMEOUT: 'No reply within 3 seconds.',
-  PROTOCOL_MISMATCH: 'Protocol version mismatch.',
-  MALFORMED_REPLY: 'The reply did not have the expected fields.',
-  INTERNAL_ERROR: 'The extension reported an internal error. Reload this page, then try again.',
-  UNEXPECTED_REPLY: 'The extension sent an unexpected message type.',
-};
+interface Verified {
+  extensionVersion: string | null;
+  protocolVersion: number | null;
+}
+
+/** Maps a verified outcome from the bridge to the state shown to the user. */
+function toUi(outcome: ConnectionOutcome): { state: UiState; verified: Verified } {
+  switch (outcome.state) {
+    case 'connected':
+      return { state: 'connected', verified: { extensionVersion: outcome.extensionVersion, protocolVersion: outcome.protocolVersion } };
+    case 'busy':
+      return { state: 'busy', verified: { extensionVersion: outcome.extensionVersion, protocolVersion: outcome.protocolVersion } };
+    case 'incompatible':
+      return { state: 'incompatible', verified: { extensionVersion: outcome.extensionVersion, protocolVersion: outcome.protocolVersion } };
+    case 'not-detected':
+      return { state: 'not-installed', verified: { extensionVersion: null, protocolVersion: null } };
+    case 'error':
+      return { state: 'error', verified: { extensionVersion: null, protocolVersion: null } };
+  }
+}
 
 export default function ExtensionPage() {
-  const [state, setState] = useState<UiState>('idle');
-  const [result, setResult] = useState<HelloResult | null>(null);
-  const copy = COPY[state];
+  const router = useRouter();
+  const [state, setState] = useState<UiState>('unchecked');
+  const [verified, setVerified] = useState<Verified>({ extensionVersion: null, protocolVersion: null });
+  const bridgeRef = useRef<ExtensionBridge | null>(null);
+  const inFlight = useRef(false);
   const Icon = ICON[state];
-  const verified = result !== null && (state === 'connected' || state === 'busy' || state === 'incompatible') && result.protocolVersion !== null;
+  const copy = COPY[state];
+
+  // Release the window listener when the page unmounts.
+  useEffect(() => () => {
+    bridgeRef.current?.dispose();
+    bridgeRef.current = null;
+  }, []);
 
   const check = async () => {
-    if (state === 'checking') return; // one handshake at a time
+    // Ignore repeated clicks while a check is running.
+    if (inFlight.current) return;
+    inFlight.current = true;
     setState('checking');
-    const bridge = createBrowserBridge();
     try {
-      const outcome = await bridge.hello(3000);
-      setResult(outcome);
-      setState(outcome.state);
+      if (!bridgeRef.current) bridgeRef.current = createBrowserBridge();
+      const outcome = await bridgeRef.current.checkConnection(3000);
+      const result = toUi(outcome);
+      setState(result.state);
+      setVerified(result.verified);
     } catch {
-      setResult({ state: 'error', extensionVersion: null, protocolVersion: null, code: 'INTERNAL_ERROR' });
       setState('error');
+      setVerified({ extensionVersion: null, protocolVersion: null });
     } finally {
-      bridge.dispose();
+      inFlight.current = false;
     }
   };
 
-  const canRetry = state === 'not-installed' || state === 'error' || state === 'incompatible';
-  const hint = result?.code ? ERROR_HINTS[result.code] : undefined;
+  const checking = state === 'checking';
+  const showVersion = verified.extensionVersion !== null || verified.protocolVersion !== null;
 
   return (
     <>
@@ -101,45 +130,54 @@ export default function ExtensionPage() {
           ResumeMate works with your own signed-in Gemini account through a Chrome extension. Nothing is sent until you approve it.
         </p>
 
-        <section aria-labelledby="ext-status" className="mt-8 rounded-lg border border-line bg-white p-6">
+        <section
+          aria-labelledby="ext-status"
+          aria-busy={checking}
+          className="mt-8 rounded-lg border border-line bg-white p-6"
+        >
           <div className="flex items-start gap-4">
-            <Icon size={24} className="mt-0.5 shrink-0 text-navy" aria-hidden="true" />
+            <Icon
+              size={24}
+              className={`mt-0.5 shrink-0 text-navy ${checking ? 'animate-spin' : ''}`}
+              aria-hidden="true"
+            />
             <div className="flex-1">
-              <p className="text-sm text-muted">Status: {copy.label}</p>
-              <h2 id="ext-status" className="mt-1 text-lg font-semibold text-ink" aria-live="polite">{copy.title}</h2>
+              <div className="text-sm text-muted">
+                <span>Status: {copy.label}</span>
+              </div>
+              <div role="status" aria-live="polite">
+                <h2 id="ext-status" className="mt-1 text-lg font-semibold text-ink">{copy.headline}</h2>
+              </div>
               <p className="mt-1 leading-relaxed text-ink/80">{copy.body}</p>
-              {hint && <p className="mt-2 text-sm text-muted">{hint}</p>}
 
-              {verified && result && (
+              {showVersion && (state === 'connected' || state === 'busy' || state === 'incompatible') && (
                 <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
                   <dt className="text-muted">Extension version</dt>
-                  <dd className="text-ink">{result.extensionVersion ?? 'Not reported'}</dd>
+                  <dd className="text-ink">{verified.extensionVersion ?? 'Unknown'}</dd>
                   <dt className="text-muted">Protocol</dt>
                   <dd className="text-ink">
-                    v{result.protocolVersion}{' '}
-                    {result.state === 'incompatible'
-                      ? `(this website uses v${BRIDGE_VERSION})`
-                      : '(compatible)'}
+                    {verified.protocolVersion ?? 'Unknown'}
+                    {state === 'incompatible' ? ' (not supported by this website)' : ' (compatible)'}
                   </dd>
                 </dl>
               )}
 
-              {state === 'connected' && (
-                <div className="mt-6">
-                  <LinkButton href="/create" className="w-full justify-center py-3 text-base sm:w-auto">
-                    Continue to Create Resume <ArrowRight size={18} aria-hidden="true" />
-                  </LinkButton>
-                </div>
-              )}
-
-              <div className="mt-4 flex flex-wrap gap-3">
-                <Button variant="secondary" onClick={check} disabled={state === 'checking'} aria-busy={state === 'checking'}>
-                  {state === 'checking' ? 'Checking...' : canRetry ? 'Retry' : state === 'idle' ? 'Check connection' : 'Check again'}
-                </Button>
-                {state === 'not-installed' && (
-                  <LinkButton href={EXTENSION_INFO_URL} variant="secondary">Installation instructions</LinkButton>
+              <div className="mt-6 flex flex-wrap gap-3">
+                {state === 'unchecked' && <Button onClick={check}>Check connection</Button>}
+                {checking && <Button disabled>Checking...</Button>}
+                {(state === 'not-installed' || state === 'error' || state === 'incompatible') && (
+                  <Button onClick={check}>Try again</Button>
                 )}
-                <LinkButton href="/create" variant="ghost">Back to Workspace</LinkButton>
+                {(state === 'busy' || state === 'connected') && (
+                  <Button variant="secondary" onClick={check}>Check again</Button>
+                )}
+                {state === 'connected' && <Button onClick={() => router.push('/generate')}>Generate resume</Button>}
+                {(state === 'not-installed' || state === 'incompatible') && (
+                  <LinkButton href={EXTENSION_INFO_URL} variant="secondary">
+                    {state === 'incompatible' ? 'Get the update' : 'Installation instructions'}
+                  </LinkButton>
+                )}
+                <Button variant="ghost" onClick={() => router.push('/create')}>Continue Editing</Button>
               </div>
             </div>
           </div>
@@ -148,12 +186,25 @@ export default function ExtensionPage() {
         <section aria-labelledby="ext-help" className="mt-8">
           <h2 id="ext-help" className="text-base font-semibold text-ink">Troubleshooting</h2>
           <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-relaxed text-ink/80">
-            <li>Open <code>chrome://extensions</code> and make sure ResumeMate Assistant is turned on.</li>
-            <li>Open ResumeMate in a regular browser tab at <code>https://resumemate.prajwalkedari.tech</code>. The extension does not run on other addresses.</li>
-            <li>After installing or enabling the extension, reload this page, then check again.</li>
             <li>
-              Installation details are on the{' '}
-              <a className="text-navy underline" href={EXTENSION_INFO_URL}>extension information page</a>.
+              Install or enable ResumeMate Assistant in Chrome at <code>chrome://extensions</code>. Chrome 116 or newer is required.
+            </li>
+            <li>
+              The extension works only on the ResumeMate address <code>{EXTENSION_SUPPORTED_ORIGIN}</code>. Open this page there.
+            </li>
+            <li>
+              After you install, update, or enable the extension, reload this page before you check again.
+            </li>
+            <li>
+              Installation instructions are at{' '}
+              <a
+                href={EXTENSION_INFO_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-navy underline underline-offset-2 hover:text-navy/80"
+              >
+                extension.prajwalkedari.tech
+              </a>.
             </li>
           </ul>
         </section>
@@ -161,6 +212,7 @@ export default function ExtensionPage() {
         <p className="mt-8 text-sm text-muted">
           Resume information goes to Gemini only after you approve the request.
         </p>
+        <div className="mt-6"><LinkButton href="/create" variant="ghost">Back to the workspace</LinkButton></div>
       </main>
     </>
   );

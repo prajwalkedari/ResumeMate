@@ -8,8 +8,7 @@
     "package": "node scripts/package.mjs",
     "test:e2e": "node tests/bundle-protocol.e2e.js",
     "test": "npm run verify:manifest && npm run test:e2e",
-    "test:site": "node tests/site-handshake.e2e.js",
-    "test:flow": "node tests/generate-flow.e2e.js"
+    "test:page": "node tests/handshake-page.e2e.js"
   },
   "devDependencies": {
     "playwright": "1.63.0"

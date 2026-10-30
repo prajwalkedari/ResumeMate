@@ -34,7 +34,7 @@ ResumeMate has two parts in this repository:
 
 Nothing is sent to Gemini automatically.
 
-> **Status: prototype.** The website, the messaging protocol, and the generation workflow work and are tested in Chromium with a fixture Gemini page. The deployed site and the live Gemini step are not yet verified. See the status table.
+> **Status: prototype.** The website and the messaging protocol work and are tested. The live connection between the website and the extension, and the live Gemini step, are not yet verified. See the status table.
 
 ---
 
@@ -43,12 +43,11 @@ Nothing is sent to Gemini automatically.
 | Area | Status | Notes |
 | --- | --- | --- |
 | Resume entry, templates, preview | Working | Fictional sample data only. Drafts are held in memory and are lost on reload. |
-| Website build, lint, typecheck, and tests | Passing | 51 of 51 tests. See [`docs/TEST-REPORT.md`](docs/TEST-REPORT.md). |
-| Extension manifest, packaging, and protocol | Passing (fixture) | Manifest verified. 25 of 25 protocol checks on the unpacked bundle. |
-| Continue to Create Resume (connected `/extension`) | Working (local test) | Links to `/create` when the handshake is verified. |
-| Website-to-extension connection check | Working (local test) | The `/extension` page runs a real handshake on click. Verified in Chromium with the unpacked extension, with the site served locally under the production hostname. |
-| Deployed site `https://resumemate.prajwalkedari.tech` | Not verified | The host did not respond from the build sandbox. Deploy and test using `docs/DEPLOYMENT.md`. |
-| Gemini generation | Fixture-tested | `/generate` runs the real extension workflow: check, prepare, your approval in the popup, submission approval, output review, and return to the website. 24 of 24 browser checks pass against a fixture Gemini page. Live Gemini is not tested. |
+| Website build, lint, typecheck, and tests | Passing | 72 of 72 unit tests, build, lint, typecheck. See [`docs/TEST-REPORT.md`](docs/TEST-REPORT.md). |
+| Extension manifest, packaging, and protocol | Passing (fixture) | Manifest verify and package pass. 26 of 26 protocol checks and 24 of 24 production-page checks, with the unpacked bundle in Chromium. |
+| Website connected to the extension | Works in Chromium fixture | The `/extension` page runs a real check and reports connected only after a verified reply. Not yet run against the live site. |
+| Live website-to-extension handshake | Not verified | The production site did not respond from the build environment. Run this from a normal network. |
+| Gemini generation | Not yet | `/generate` simulates progress. No request is sent. |
 | PDF output | Not yet | "Download PDF (demo)" creates no file. |
 | PDF and LaTeX import | Library only | Code and tests exist. Not connected to the upload UI. OCR is not run. |
 | LaTeX compilation | Not deployed | The wrapper is not a sandbox. |
@@ -154,7 +153,7 @@ npm ci                  # install from package-lock.json
 npm run dev             # http://localhost:3000
 npm run lint
 npm run typecheck
-npm test                # 43 tests (no live services)
+npm test                # 72 tests (no live services)
 npm run build
 npm run start           # serve the production build
 ```
@@ -174,11 +173,10 @@ cd apps/extension
 npm install
 npm run verify:manifest     # manifest, files, permissions, no development origins
 npm run package             # dist/resumemate-assistant-0.1.0.zip
-npm run test:e2e           # loads the bundle in Chromium (fixture-based, 25 checks)
-npm run test:site          # /extension page with the bundle; website served locally on port 3100
+npm run test:e2e           # loads the bundle in Chromium (fixture-based)
 ```
 
-To try it locally, open `chrome://extensions`, turn on Developer mode, choose **Load unpacked**, and select `apps/extension`. It accepts messages only from `https://resumemate.prajwalkedari.tech`. Extensions installed before this version trusted the old domain, so reload or reinstall the extension.
+To try it locally, open `chrome://extensions`, turn on Developer mode, choose **Load unpacked**, and select `apps/extension`. Its production origin is `https://resumemate.prajwalkedari.tech`. The extension answers only on that origin, so open ResumeMate there to use the connection check.
 
 ---
 
@@ -192,7 +190,7 @@ To try it locally, open `chrome://extensions`, turn on Developer mode, choose **
 
 Resume data is not sent during the connection check. ResumeMate does not use private Gemini APIs, cookies, passwords, or hidden state. Gemini can make mistakes, so check every generated line against your own experience.
 
-The approval gates are in the bundle. In Chromium, against a **fixture** Gemini page built to the same selectors, the full flow is tested: nothing reaches Gemini before approval, rejection and retry work, and the output is only returned after the popup sends it. A live Gemini page has not been tested.
+The approval steps are in the bundle. The steps before Gemini (prepare and cancel) have been checked in Chromium. Steps 3 and 4 against a live Gemini page have not.
 
 ---
 
@@ -216,23 +214,25 @@ Full results and blockers: [`docs/TEST-REPORT.md`](docs/TEST-REPORT.md).
 | Check | Scope | Result |
 | --- | --- | --- |
 | Website lint, typecheck, build | Code and build | Pass |
-| Website tests | Bridge state logic and ordering (13), PDF/LaTeX import and compile (38) | 51 of 51 |
-| `/extension` page with the unpacked extension | Chromium, website served locally under the production hostname | 10 of 10 |
+| Website tests | Bridge regression (5), PDF/LaTeX import and compile (38), connection check (29) | 72 of 72 |
 | Extension manifest and packaging | Bundle | Pass |
-| Extension browser protocol test | Chromium, stubbed origins and Gemini | 25 of 25 |
-| Generation workflow (state logic, bridge ordering) | Unit | 26 + 2 tests, pass (79 of 79 website tests in total) |
-| Generation workflow in Chromium | Fixture Gemini, local build | 24 of 24 |
+| Extension browser protocol test | Chromium, unpacked bundle, fixture website and Gemini | 26 of 26 |
+| Extension page test | Chromium, production `/extension` served by route interception, unpacked bundle | 24 of 24 |
 | Cross-repo bridge tests | Needs the extension source | **Blocked**, not run |
 
-Browser tests use a local build of the website and a fixture or stubbed Gemini. They do **not** test the deployed site or live Gemini. The remaining live tests are listed in `docs/TEST-REPORT.md`.
+These are **fixture tests**. They do not contact the live website or Gemini. The live tests still to do are listed in `docs/TEST-REPORT.md`.
 
 ---
 
 ## Deployment
 
-The website is hosted on **Vercel**, from `apps/web` (set the project's root directory to `apps/web`). Set `NEXT_PUBLIC_SITE_ORIGIN=https://resumemate.prajwalkedari.tech` for production, and attach that domain. The extension is distributed as a zip. Users must reload or reinstall it after this version. Full steps, the post-deploy checklist, and rollback are in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+No hosting provider is configured yet. The website needs a Node runtime (`npm run start`), because the Gemini route and compile service will not work on static-only hosting. The extension is distributed as a packaged zip. See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
-Production status: **not yet deployed or verified** from this environment.
+Before release:
+
+1. Confirm the production origin. The website and the extension must use the same one.
+2. Add the extension source, then rebuild with that origin.
+3. Decide on the Next.js upgrade (see Security).
 
 ---
 
@@ -246,7 +246,7 @@ Public pages have unique titles and descriptions, Open Graph and Twitter tags, a
 
 | Symptom | Cause and fix |
 | --- | --- |
-| `/extension` says "Not Installed" | Expected in production. The live connection is not yet connected to the page. |
+| `/extension` says "Not installed" | The extension is missing, disabled, or not reachable on `https://resumemate.prajwalkedari.tech`. Install or enable it, then reload the page and check again. |
 | Extension ignores the website | The website origin is not on the extension allow-list. Check the origin in the bundle. |
 | "This file is not a PDF" | Export the resume again as a PDF. |
 | "encrypted or password-protected" | Remove the password, then upload again. |

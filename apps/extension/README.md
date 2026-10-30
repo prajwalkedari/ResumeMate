@@ -12,11 +12,11 @@ This is the **built bundle** of the extension, not its source. The archive suppl
 npm install          # Playwright is used only by the browser test
 npm run verify:manifest   # manifest, referenced files, permissions, and no dev origins in the bundle
 npm run package           # writes dist/resumemate-assistant-0.1.0.zip
-npm run test:e2e          # loads the unpacked bundle in Chromium and checks the protocol (fixture-based, 25 checks)
-npm run test:site         # the /extension page with the bundle; needs the website on port 3100
+npm run test:e2e          # loads the unpacked bundle in Chromium and checks the protocol (fixture-based)
+npm run test:page         # serves the production /extension page and checks the real handshake (needs apps/web build)
 ```
 
-`test:e2e` uses the Chromium that is installed in the environment (`channel: 'chromium'`). If it is missing, install a browser with `npx playwright install chromium` and adjust the channel.
+Both browser tests use the Chromium that Playwright manages. To use another Chromium, set `RM_CHROMIUM_PATH` to its executable. If none is installed, run `npx playwright install chromium`. `test:page` needs `apps/web` built with `NEXT_PUBLIC_SITE_ORIGIN=https://resumemate.prajwalkedari.tech`.
 
 ## Installing for development
 
@@ -28,5 +28,4 @@ Chrome Web Store distribution is not set up. See `docs/DEPLOYMENT.md`.
 ## Permissions
 
 - `storage`: stores the active request and a draft.
-- Host access: `https://gemini.google.com/*` and `https://resumemate.prajwalkedari.tech/*` (the exact production origin, no wildcards).
-- Website content script: matches only `https://resumemate.prajwalkedari.tech/*`.
+- Host access: `https://gemini.google.com/*` and `https://resumemate.prajwalkedari.tech/*`. The website origin is exact: no wildcards and no root domain.

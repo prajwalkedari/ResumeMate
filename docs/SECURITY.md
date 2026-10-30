@@ -10,7 +10,7 @@ Please report security issues privately to the maintainer. A public contact has 
 
 | Area | Control | Verified by |
 | --- | --- | --- |
-| Messaging | Channel, version, and direction checks on both sides | Browser test (22 of 22) and website bridge tests |
+| Messaging | Channel, version, and direction checks on both sides | Browser tests (26 of 26 protocol, 24 of 24 page) and website bridge tests (29 connection, 5 progress) |
 | Origin | Extension accepts only the production origin (and dev origins only in dev builds) | Browser test (foreign origin gets no reply) and manifest verification |
 | Sender | Website accepts replies only from its own window and origin | `bridge-progress.test.ts` |
 | Payload | Size limits and required fields on both sides | Browser test (oversized and invalid payloads) |
@@ -38,3 +38,7 @@ The extension requests only `storage`, plus two host permissions: `https://gemin
 - The website keeps drafts in memory only. It has no server-side storage.
 - Resume data leaves the browser only after the user approves a prompt in the extension.
 - No private Gemini APIs, cookies, passwords, or hidden state are accessed.
+
+## Handshake identity
+
+The website's connection check accepts a reply when it has the expected channel, protocol version, page origin, and request ID. These checks establish that the reply follows the protocol and answers this request. They do not prove who sent it. Any script running in the same page can post a matching message, and the page cannot tell an extension from another script. A stronger check needs a published extension ID and `externally_connectable`. Until the extension has a stable ID, this limit remains open.
