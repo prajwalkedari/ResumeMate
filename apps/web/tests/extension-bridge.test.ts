@@ -21,7 +21,7 @@ before(async () => {
   constants = await load('shared/constants.ts');
 });
 
-const ORIGIN = 'https://prajwalkedari.tech';
+const ORIGIN = 'https://resumemate.prajwalkedari.tech';
 
 describe('limits stay identical across the two repositories', () => {
   it('frontend BRIDGE_LIMITS match the extension LIMITS', () => {

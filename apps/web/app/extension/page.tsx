@@ -1,58 +1,96 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { CircleCheck, Puzzle, TriangleAlert, Unplug } from 'lucide-react';
-import { Header, Button, LinkButton, Notice } from '@/components/ui';
-import { useApp } from '@/components/providers';
+import { CircleCheck, Puzzle, TriangleAlert, Unplug, CircleHelp } from 'lucide-react';
+import { Header, Button, LinkButton } from '@/components/ui';
+import { createBrowserBridge, BRIDGE_VERSION, type HelloResult } from '@/lib/extension-bridge';
 
-type Conn = 'not-installed' | 'connected' | 'disconnected' | 'needs-attention';
+// Installation and information page for the extension. It is an external link, not the messaging origin.
+const EXTENSION_INFO_URL = 'https://extension.prajwalkedari.tech';
 
-const COPY: Record<Conn, { label: string; title: string; body: string }> = {
-  'not-installed': {
-    label: 'Not Installed',
-    title: 'ResumeMate Extension Required',
-    body: 'Install the ResumeMate extension to use your own signed-in Gemini account. A resume request cannot be sent without it.',
+type UiState = 'idle' | 'checking' | 'connected' | 'busy' | 'not-installed' | 'incompatible' | 'error';
+
+const COPY: Record<UiState, { label: string; title: string; body: string }> = {
+  idle: {
+    label: 'Not checked',
+    title: 'Check the connection',
+    body: 'Press Check connection to see whether the ResumeMate Assistant extension is installed, enabled, and reachable from this page.',
+  },
+  checking: {
+    label: 'Checking',
+    title: 'Checking ResumeMate Assistant...',
+    body: 'Waiting for the extension to reply.',
   },
   connected: {
     label: 'Connected',
-    title: 'Extension connected',
-    body: 'The extension is connected. You still approve each request before anything is sent.',
+    title: 'ResumeMate Assistant is connected.',
+    body: 'The extension replied with a compatible protocol version. You still approve each request before anything is sent.',
   },
-  disconnected: {
-    label: 'Disconnected',
-    title: 'Extension disconnected',
-    body: 'ResumeMate cannot reach the extension right now. Reconnect to continue. Your draft is still here.',
+  busy: {
+    label: 'Busy',
+    title: 'The extension is currently processing another request.',
+    body: 'It is connected. Finish or cancel the request in the extension, then check again.',
   },
-  'needs-attention': {
-    label: 'Needs Attention',
-    title: 'Gemini sign-in needed',
-    body: 'The extension is installed, but no signed-in Gemini tab was found. Sign in to Gemini in Chrome, then check again.',
+  'not-installed': {
+    label: 'Not detected',
+    title: 'ResumeMate Assistant was not detected. Install the extension to continue.',
+    body: 'No reply arrived. The extension may not be installed, may be turned off, or may not be allowed on this website.',
+  },
+  incompatible: {
+    label: 'Incompatible',
+    title: 'Your extension version is incompatible. Please update it.',
+    body: 'The extension replied, but it uses a different protocol version from this website.',
+  },
+  error: {
+    label: 'Error',
+    title: 'Unable to connect. Please try again.',
+    body: 'The extension replied with an error or an unexpected message.',
   },
 };
 
-const ICON: Record<Conn, typeof Puzzle> = {
-  'not-installed': Puzzle,
+const ICON: Record<UiState, typeof Puzzle> = {
+  idle: CircleHelp,
+  checking: Puzzle,
   connected: CircleCheck,
-  disconnected: Unplug,
-  'needs-attention': TriangleAlert,
+  busy: TriangleAlert,
+  'not-installed': Puzzle,
+  incompatible: TriangleAlert,
+  error: Unplug,
 };
 
-// Production builds never report a real connection: no handshake exists yet, so the state stays "Not Installed".
-const isDev = process.env.NODE_ENV !== 'production';
+const ERROR_HINTS: Record<string, string> = {
+  TIMEOUT: 'No reply within 3 seconds.',
+  PROTOCOL_MISMATCH: 'Protocol version mismatch.',
+  MALFORMED_REPLY: 'The reply did not have the expected fields.',
+  INTERNAL_ERROR: 'The extension reported an internal error. Reload this page, then try again.',
+  UNEXPECTED_REPLY: 'The extension sent an unexpected message type.',
+};
 
 export default function ExtensionPage() {
-  const { notify } = useApp();
-  const router = useRouter();
-  const [conn, setConn] = useState<Conn>('not-installed');
-  const Icon = ICON[conn];
+  const [state, setState] = useState<UiState>('idle');
+  const [result, setResult] = useState<HelloResult | null>(null);
+  const copy = COPY[state];
+  const Icon = ICON[state];
+  const verified = result !== null && (state === 'connected' || state === 'busy' || state === 'incompatible') && result.protocolVersion !== null;
 
-  const check = () =>
-    notify(
-      conn === 'connected'
-        ? 'Simulated connection only. Real detection is not connected in this build.'
-        : 'No verified extension handshake yet. Detection is not connected in this build.',
-    );
+  const check = async () => {
+    if (state === 'checking') return; // one handshake at a time
+    setState('checking');
+    const bridge = createBrowserBridge();
+    try {
+      const outcome = await bridge.hello(3000);
+      setResult(outcome);
+      setState(outcome.state);
+    } catch {
+      setResult({ state: 'error', extensionVersion: null, protocolVersion: null, code: 'INTERNAL_ERROR' });
+      setState('error');
+    } finally {
+      bridge.dispose();
+    }
+  };
+
+  const canRetry = state === 'not-installed' || state === 'error' || state === 'incompatible';
+  const hint = result?.code ? ERROR_HINTS[result.code] : undefined;
 
   return (
     <>
@@ -67,57 +105,54 @@ export default function ExtensionPage() {
           <div className="flex items-start gap-4">
             <Icon size={24} className="mt-0.5 shrink-0 text-navy" aria-hidden="true" />
             <div className="flex-1">
-              <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
-                <span>Status: {COPY[conn].label}</span>
-                {isDev && (
-                  <span className="rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs text-amber-900">
-                    Simulated, development only
-                  </span>
-                )}
-              </div>
-              <h2 id="ext-status" className="mt-1 text-lg font-semibold text-ink">{COPY[conn].title}</h2>
-              <p className="mt-1 leading-relaxed text-ink/80">{COPY[conn].body}</p>
+              <p className="text-sm text-muted">Status: {copy.label}</p>
+              <h2 id="ext-status" className="mt-1 text-lg font-semibold text-ink" aria-live="polite">{copy.title}</h2>
+              <p className="mt-1 leading-relaxed text-ink/80">{copy.body}</p>
+              {hint && <p className="mt-2 text-sm text-muted">{hint}</p>}
+
+              {verified && result && (
+                <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+                  <dt className="text-muted">Extension version</dt>
+                  <dd className="text-ink">{result.extensionVersion ?? 'Not reported'}</dd>
+                  <dt className="text-muted">Protocol</dt>
+                  <dd className="text-ink">
+                    v{result.protocolVersion}{' '}
+                    {result.state === 'incompatible'
+                      ? `(this website uses v${BRIDGE_VERSION})`
+                      : '(compatible)'}
+                  </dd>
+                </dl>
+              )}
 
               <div className="mt-6 flex flex-wrap gap-3">
-                {conn === 'not-installed' && (
-                  <Button onClick={() => notify('The install link is not configured in this prototype.')}>Install Extension</Button>
+                <Button onClick={check} disabled={state === 'checking'} aria-busy={state === 'checking'}>
+                  {state === 'checking' ? 'Checking...' : canRetry ? 'Retry' : state === 'idle' ? 'Check connection' : 'Check again'}
+                </Button>
+                {state === 'not-installed' && (
+                  <LinkButton href={EXTENSION_INFO_URL} variant="secondary">Installation instructions</LinkButton>
                 )}
-                {conn === 'connected' && <Button onClick={() => router.push('/generate')}>Generate resume</Button>}
-                {(conn === 'disconnected' || conn === 'needs-attention') && (
-                  <Button onClick={check}>{conn === 'disconnected' ? 'Reconnect' : 'Check Again'}</Button>
-                )}
-                <Button variant="secondary" onClick={check}>Check Again</Button>
-                <Button variant="ghost" onClick={() => router.push('/create')}>Continue Editing</Button>
+                <LinkButton href="/create" variant="ghost">Back to the workspace</LinkButton>
               </div>
             </div>
           </div>
         </section>
 
-        {isDev && (
-          <div className="mt-8">
-            <Notice title="Development mock switch">
-              <p>Simulated states for UI review. This control is removed from production builds and never reports a real connection.</p>
-              <div role="group" aria-label="Simulated connection state" className="mt-3 flex flex-wrap gap-2">
-                {(Object.keys(COPY) as Conn[]).map((c) => (
-                  <Button
-                    key={c}
-                    variant="secondary"
-                    aria-pressed={conn === c}
-                    className={conn === c ? 'border-navy text-navy' : ''}
-                    onClick={() => setConn(c)}
-                  >
-                    {COPY[c].label}
-                  </Button>
-                ))}
-              </div>
-            </Notice>
-          </div>
-        )}
+        <section aria-labelledby="ext-help" className="mt-8">
+          <h2 id="ext-help" className="text-base font-semibold text-ink">Troubleshooting</h2>
+          <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-relaxed text-ink/80">
+            <li>Open <code>chrome://extensions</code> and make sure ResumeMate Assistant is turned on.</li>
+            <li>Open ResumeMate in a regular browser tab at <code>https://resumemate.prajwalkedari.tech</code>. The extension does not run on other addresses.</li>
+            <li>After installing or enabling the extension, reload this page, then check again.</li>
+            <li>
+              Installation details are on the{' '}
+              <a className="text-navy underline" href={EXTENSION_INFO_URL}>extension information page</a>.
+            </li>
+          </ul>
+        </section>
 
         <p className="mt-8 text-sm text-muted">
           Resume information goes to Gemini only after you approve the request.
         </p>
-        <div className="mt-6"><LinkButton href="/create" variant="ghost">Back to the workspace</LinkButton></div>
       </main>
     </>
   );

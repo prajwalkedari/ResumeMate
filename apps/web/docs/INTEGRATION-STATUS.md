@@ -10,7 +10,7 @@ credential, or service prevents verification.
 | --- | --- |
 | npm registry (`registry.npmjs.org`) | BLOCKED. DNS resolution fails and `npm view` times out. No npm cache holds Next.js, React, or Tailwind. |
 | Frontend `npm ci`, `npm run build`, `npm run lint` | BLOCKED. Dependencies cannot be installed. |
-| Production domain `prajwalkedari.tech` | BLOCKED. DNS does not resolve from this sandbox (curl exit 6). This does not prove the domain is down. |
+| Production domain `resumemate.prajwalkedari.tech` | BLOCKED. DNS does not resolve from this sandbox (curl exit 6). This does not prove the domain is down. |
 | Deployment configuration | BLOCKED. The frontend archive contains no `vercel.json`, `wrangler.toml`, `netlify.toml`, `Dockerfile`, `next.config.*`, or CI file. The hosting platform cannot be determined from the project. |
 | Deployment credentials and accounts | BLOCKED. None were provided. No deployment was attempted. |
 | Live Gemini session | BLOCKED. No network access and no signed-in Google session. |
@@ -36,7 +36,7 @@ The extension's validator (`src/shared/validation.ts`) is the authority. Each fr
 | The frontend has structured fields, but the extension expects one text block. | Schema comparison. | `serializeResume()` flattens entered fields, skipping empty ones and keeping line breaks. |
 | The frontend templates (`classic`, `modern`, `minimal`, `technical`) are visual layouts. The extension's templates (`none`, `chronological`, `functional`, `one-page`) are content-layout instructions. | Schema comparison. | Mapped to `none` for every frontend template. ResumeMate applies the visual layout when rendering the PDF. This is a deliberate decision, and it is documented here rather than hidden. |
 | The frontend has no task selector. | Source review. | Not yet wired into the UI. The bridge accepts any extension task. |
-| The extension trusts only `https://prajwalkedari.tech` in production. | `src/shared/constants.ts`, `manifest.json`. | If the frontend is deployed to any other origin, the bridge will not run there. The deployment origin must be decided before this can work. |
+| The extension trusts only `https://resumemate.prajwalkedari.tech` in production. | `src/shared/constants.ts`, `manifest.json`. | If the frontend is deployed to any other origin, the bridge will not run there. The deployment origin must be decided before this can work. |
 | Limits must match exactly. | Cross-repo test. | `BRIDGE_LIMITS` matches the extension's `LIMITS` (checked by a test). |
 
 ## 4. Automated checks executed in this session
@@ -76,7 +76,7 @@ the React UI wiring (NOT TESTED), and the production origin (BLOCKED).
 ## 7. Blockers to resolve before deployment
 
 1. Choose the hosting platform and provide its project configuration. The current archive does not determine it.
-2. Decide the production frontend origin. The extension's production allowlist currently accepts only `https://prajwalkedari.tech`.
+2. Decide the production frontend origin. The extension's production allowlist currently accepts only `https://resumemate.prajwalkedari.tech`.
 3. Run `npm ci && npm run build && npm run lint` on a networked machine. These have not run here.
 4. Decide where the LaTeX compile service runs, and whether to host it separately. Compilation must not run in the frontend's serverless or edge runtime.
 5. Confirm the production domain resolves and points to the chosen platform.

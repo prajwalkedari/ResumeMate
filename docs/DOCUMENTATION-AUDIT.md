@@ -1,28 +1,28 @@
 # Documentation audit
 
-Discrepancies between the documentation and the implementation, as found on 2026-10-30. Status is "Fixed" when this work changed the code or docs, and "Open" when a decision or missing file is needed.
+Discrepancies between documentation and implementation, as found on 2026-10-31. "Fixed" means this pass changed the code or docs. "Open" means a decision or source file is still needed. The archived `apps/web/docs/` files record findings from earlier sessions. Their statements about then-current state are historical, but their origin references now match the current configuration.
 
 | # | Where | Claim or gap | Reality | Status |
 | --- | --- | --- | --- | --- |
-| 1 | Website home (`app/page.tsx`) | "Upload a PDF, DOCX, or TXT resume" | File import is not connected to the UI. Only library code exists. | Fixed (copy now says "in development") |
-| 2 | Website home | "Talk through your background" as a working option | Voice input is simulated, with no microphone access. | Fixed |
-| 3 | Website home | "Download your PDF" | "Download PDF (demo)" creates no file. | Fixed |
-| 4 | Website home | "Built for applicant tracking systems" | No evidence. This is an unverified claim. | Fixed (removed) |
-| 5 | Website home | "You can clear all data from the workspace" | No clear-data control exists. | Fixed (removed) |
-| 6 | Website home | "Your draft stays in this browser session" | Drafts are in memory only and are lost on reload. | Fixed |
-| 7 | `apps/web/README.md` | "npm ci, build, and lint not yet verified" | `npm ci`, build, and lint now run. `npm test` and `npm run typecheck` were added. | Open (the file still needs updating; the root README has the current status) |
-| 8 | `apps/web/.env.example` | `NEXT_PUBLIC_SITE_ORIGIN` "not read by any code yet" | Now read by `lib/site.ts` for SEO output. It is **not** used by the extension allow-list. | Fixed (`.env.example` updated) |
-| 9 | `docs/INTEGRATION-STATUS.md` (from the archive) | Extension source at `src/` with 102 unit tests and 37 browser tests | The source is not in this repository. The browser fixture test was rewritten and rerun (22 of 22). | Open (needs the source) |
-| 10 | `apps/web/tests/extension-bridge.test.ts` | Expects the extension source at `/home/claude/resumemate-extension/src` | Path does not exist. Tests cannot run. | Open |
-| 11 | `docs/INTEGRATION-STATUS.md` | Extension trusts only `https://prajwalkedari.tech` | Confirmed in the bundle. The intended origin is `https://resume.prajwalkedari.tech`. | Open (decision needed) |
-| 12 | `apps/extension/manifest.json` | Host permissions for `prajwalkedari.tech` only | The intended website host is missing. | Open (follows from #11) |
-| 13 | `docs/INTEGRATION-STATUS.md` | `npm ci`, build, and lint "BLOCKED" (no registry) | The registry is reachable now. All three run and pass. | Fixed (reported in `TEST-REPORT.md`) |
-| 14 | Frontend archive `docs/TEST-REPORT.md` and `README.md` | "Next.js 14.2.15" with no mention of advisories | `npm audit` reports critical and high advisories. Upgraded to the patched 14.2.35 line, which still has advisories. | Partly fixed (open: framework upgrade decision) |
-| 15 | Frontend `README.md` | "Lint: next lint" | Lint had no config and stopped at a prompt. | Fixed (`.eslintrc.json` added with ESLint 8.57.1 and eslint-config-next 14.2.35) |
-| 16 | Root `README.md` (previous version) | "apps/extension is planned but not created" | Created. | Fixed (root README updated) |
-| 17 | Root `README.md` (previous version) | "Localhost origins only in development builds" | The shipped bundle has no development origin. The development build path is in source that is not here. | Open (cannot verify without source) |
-| 18 | Bridge client comment | "protocol documented in the extension's docs/WEBSITE-INTEGRATION.md" | That document is not in this repository. The protocol is now documented in `docs/WEBSITE-INTEGRATION.md` and checked against the bundle. | Fixed (reference updated) |
-| 19 | Bridge client `prepare()` | Accepted the first reply | The extension sends progress before the final reply. Accepted requests were reported as failures. | Fixed (`bridge-progress.test.ts`) |
-| 20 | Extension bundle | Cancel answered once | The cancel status is sent twice. | Open (behavior only; harmless to the client) |
-| 21 | `docs/INSTALLATION.md` (archive) | `pdfjs-dist` is "not in package.json" | Still true. | Accurate; no change |
-| 22 | Root `README.md` (previous version) | Testing table with counts from an earlier session | Those counts could not be re-verified here. | Fixed (README now uses this run's results and labels older ones) |
+| 1 | Extension manifest | Host access to the old root domain `prajwalkedari.tech` | Now `https://resumemate.prajwalkedari.tech/*` only | Fixed |
+| 2 | Extension bundles | Production origin the old root domain | All four bundles use `https://resumemate.prajwalkedari.tech` | Fixed (edited in the bundle, source missing) |
+| 3 | `/extension` page | "Check" only showed a notice; "Detection is not connected" | Runs a real `HELLO` handshake and shows verified states | Fixed |
+| 4 | Bridge `hello()` | Returned only `connected`, `busy`, or `not-detected`, and dropped the version | Returns a verified result with state, extension version, protocol, and code | Fixed |
+| 5 | `/extension` page | Simulated status switch and "Simulated, development only" badge | Removed | Fixed |
+| 6 | `/extension` page | "Install Extension" button only showed a notice | Links to the extension information page (`https://extension.prajwalkedari.tech`, not verified from here) | Fixed |
+| 7 | `/extension` page | "Generate resume" shown when connected, leading to a simulated screen | Removed | Fixed |
+| 8 | Extension `manifest.json` `content_scripts` | Matched the old root domain | Matches the exact production origin | Fixed |
+| 9 | Extension verifier | Warned that the production origin was not the intended one | Fails on a wrong origin; passes now | Fixed |
+| 10 | Documentation (all) | Mixed `prajwalkedari.tech`, `resume.prajwalkedari.tech`, and `resumemate.prajwalkedari.tech` | Standardised on `resumemate.prajwalkedari.tech`. The landing page `extension.prajwalkedari.tech` is kept as an external link. | Fixed |
+| 11 | `apps/web/tests/extension-bridge.test.ts` | Expected origin `prajwalkedari.tech` | Now `resumemate.prajwalkedari.tech`. The test still cannot run without the source. | Partly fixed (open: source missing) |
+| 12 | `docs/DEPLOYMENT.md` | Hosting unknown, no provider configured | Vercel, with root directory `apps/web`. Vercel settings are not configured yet, and no deployment has been verified. | Fixed (docs). Open: deployment itself. |
+| 13 | `docs/DEPLOYMENT.md` | Mentioned `NEXT_PUBLIC_SITE_URL` | The app reads `NEXT_PUBLIC_SITE_ORIGIN`. No new variable was added. | Fixed |
+| 14 | `apps/web/docs/INTEGRATION-STATUS.md` (archive) | Says the extension trusts only `prajwalkedari.tech` and the decision is open | Now the exact resumemate origin. The archived statements about the earlier state are kept as the findings at the time. | Partly fixed (historical record) |
+| 15 | Extension README | "Host access: the old root domain. The website origin is not yet resume.*" | Updated to the exact origin | Fixed |
+| 16 | `docs/TEST-REPORT.md` (previous version) | Stated the live handshake was untested with a real unpacked extension | Real unpacked bundle now tested in Chromium, both protocol-level (25) and page-level (10). Deployed site still untested. | Fixed (with the deployed-site caveat) |
+| 17 | Extension source | Absent | Absent. The four bundles are edited directly. | Open |
+| 18 | Deployed production site | Not reachable from the build sandbox | Unchanged | Open |
+| 19 | Users' installed extension | Old installs trust only the old root domain | Each user must reload or reinstall the extension | Open (user action) |
+| 20 | Next.js 14.2.35 | Advisories with fixes only in 15.5 or 16 | Unchanged | Open (framework decision) |
+| 21 | Extension `README.md` and `docs/ARCHITECTURE.md` | "Localhost origins only in development builds" | The shipped bundles contain no development origin. The development build path is in source not present here. | Open (cannot verify without source) |
+| 22 | Website `NEXT_PUBLIC_SITE_ORIGIN` | "Not read by any code yet" (earlier `.env.example`) | Read by `lib/site.ts` (SEO only). It is not used by the extension, which has its origin compiled in. | Fixed |

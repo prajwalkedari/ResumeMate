@@ -34,9 +34,9 @@ The homepage describes what works today, and labels voice input, file import, an
 
 ## Verified
 
-Checked by running `next start` with `NEXT_PUBLIC_SITE_ORIGIN=https://resume.prajwalkedari.tech`:
+Checked by running `next start` with `NEXT_PUBLIC_SITE_ORIGIN=https://resumemate.prajwalkedari.tech`:
 
-- `/robots.txt` contains `Sitemap: https://resume.prajwalkedari.tech/sitemap.xml`.
+- `/robots.txt` contains `Sitemap: https://resumemate.prajwalkedari.tech/sitemap.xml`.
 - `/sitemap.xml` lists the two indexable URLs with the correct origin.
 - `/create` returns `<meta name="robots" content="noindex, nofollow">`.
 - `/extension` returns an absolute canonical link.

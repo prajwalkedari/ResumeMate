@@ -1,147 +1,104 @@
 # Test report
 
-Run date: 2026-10-30, in the build sandbox. Environment: Node v22.23.4, npm 10.9.9, Playwright 1.63.0 with the preinstalled Chromium, TeX Live (Debian `pdflatex`), poppler-utils, qpdf, Python 3 with Pillow.
+Run: 2026-10-31, build sandbox. Node v22.23.4, npm 10.9.9, Playwright 1.63.0 with the preinstalled Chromium, TeX Live `pdflatex`, poppler-utils, qpdf, Python 3 with Pillow.
 
-Each result below comes from a command actually run during this work. Nothing was re-used from earlier reports unless it is marked "carried over".
+Every result below comes from a command run in this pass. Older results are marked as carried over.
 
 ## Summary
 
-| Area | Result |
-| --- | --- |
-| Website lint | PASS (0 warnings, after adding a pinned ESLint config) |
-| Website typecheck | PASS |
-| Website unit and import tests | PASS, 43 of 43 |
-| Website production build | PASS (Next.js 14.2.35) |
-| Website cross-repo bridge tests | **BLOCKED**, 0 of 20 run (extension source missing) |
-| Extension manifest verification | PASS, with 2 warnings |
-| Extension packaging | PASS |
-| Extension browser protocol test (fixture) | PASS, 22 of 22 |
-| Protocol regression test (old bridge) | FAIL on old code (2 of 5), PASS on fixed code (5 of 5) |
-| SEO output checks | PASS |
-| Dependency audit | **Open**: 1 critical and 4 high advisories remain |
-| Live site, live handshake, live Gemini | **NOT TESTED** |
+| Area | Type | Result |
+| --- | --- | --- |
+| Website lint | Static | PASS, 0 warnings |
+| Website typecheck | Static | PASS |
+| Website unit tests (bridge state logic, ordering, malformed replies, and PDF/LaTeX import) | Unit | PASS, 51 of 51 |
+| Website production build, default (no origin) | Build | PASS |
+| Website production build with `NEXT_PUBLIC_SITE_ORIGIN=https://resumemate.prajwalkedari.tech` | Build | PASS |
+| Website cross-repo bridge tests (`tests/extension-bridge.test.ts`) | Unit, needs extension source | **BLOCKED**, 0 of 20 run |
+| Extension manifest verification | Static | PASS (exact origin, no wildcard, four bundles checked) |
+| Extension verifier rejects the old origin | Negative test | PASS (4 failures reported for an old-origin copy) |
+| Extension packaging | Build | PASS, 14 files |
+| Extension protocol test against the unpacked bundle, stubbed origins | Chromium fixture | PASS, 25 of 25 |
+| `/extension` page with the unpacked bundle, site served locally under the production hostname | Chromium, local build | PASS, 10 of 10 |
+| Deployed site `https://resumemate.prajwalkedari.tech` | Live | **NOT TESTED**. No response from the build sandbox. |
+| Live Gemini | Live | **NOT TESTED** |
 
-## Commands and results
+## Commands
 
 ### Website (`apps/web`)
 
 | Command | Result |
 | --- | --- |
-| `npm ci` | PASS. Installed from the supplied lockfile (Next.js 14.2.15). Later upgraded, see below. |
-| `npm run lint` | PASS after configuration. Before, it stopped at an interactive ESLint prompt (FAIL). The project had no ESLint config and no ESLint dependency. |
-| `npm run typecheck` (`tsc --noEmit`) | PASS |
-| `npm test` (`tsx --test tests/bridge-progress.test.ts tests/pdf-latex-import.test.ts`) | PASS, 43 of 43. `bridge-progress`: 5. `pdf-latex-import`: 38 (0 skipped). |
-| `npx tsx --test tests/extension-bridge.test.ts` | **BLOCKED**. It imports the extension's `src/shared/*.ts`, which is not in the supplied bundle. It fails at import with "Cannot find module". 0 of 20 ran. |
-| `npm run build` | PASS, Next.js 14.2.35, with and without `NEXT_PUBLIC_SITE_ORIGIN` |
+| `npm run lint` | PASS |
+| `npm run typecheck` | PASS |
+| `npm test` | PASS, 51 of 51 (`bridge-progress` 13, `pdf-latex-import` 38) |
+| `NEXT_PUBLIC_SITE_ORIGIN=https://resumemate.prajwalkedari.tech npm run build` | PASS |
+| `npm run build` (no origin) | PASS. No canonical link is emitted. |
+| `npx tsx --test tests/extension-bridge.test.ts` | **BLOCKED**. It imports the extension's `src/shared/*.ts`, which is not in the archive. |
 
-Route sizes from the final default build (First Load JS, shared by all routes 87.1 kB). `/extension`, `/generate`, and `/preview` are not listed here:
-
-| Route | Size | First Load JS |
-| --- | --- | --- |
-| `/` | 3.38 kB | 99.4 kB |
-| `/create` | 9.98 kB | 106 kB |
+Audit (unchanged this pass): `npm audit` still reports 1 critical and 4 high advisories for Next.js 14.2.35, whose fixes are in 15.5 or 16. A framework migration is needed.
 
 ### Extension (`apps/extension`)
 
 | Command | Result |
 | --- | --- |
-| `npm run verify:manifest` | PASS. Manifest V3, version 0.1.0, 9 referenced files present, permissions limited to `storage`, host permissions limited to the Gemini and `prajwalkedari.tech` patterns, no `localhost` or `127.0.0.1` in the bundle. |
-| `npm run package` | PASS. `dist/resumemate-assistant-0.1.0.zip`, 14 entries, 88,565 bytes uncompressed. |
-| `npm run test:e2e` | PASS, 22 of 22 (see below) |
+| `npm run verify:manifest` | PASS. Production origin `https://resumemate.prajwalkedari.tech`. Host permissions: that origin with `/*` and Gemini. Website content script matches only that origin. All four bundles carry the same origin. No development origin. |
+| `npm run verify:manifest` against a copy with the old origin | FAIL, as expected (4 failures). |
+| `npm run package` | PASS. `dist/resumemate-assistant-0.1.0.zip`, 14 files, 88,631 bytes uncompressed. |
+| `npm run test:e2e` | PASS, 25 of 25 |
+| `npm run test:site` (needs the website running on port 3100) | PASS, 10 of 10 |
 
-Warnings from `verify:manifest` (not failures):
+## Protocol test against the unpacked bundle (25 checks)
 
-1. Host permissions and content scripts do not include `https://resume.prajwalkedari.tech`.
-2. The production origin compiled into the bundle is `https://prajwalkedari.tech`.
+Fixture-based: `resumemate.prajwalkedari.tech`, the old root domain, an unrelated subdomain, and Gemini are stubbed. Payloads come from the website's bridge code.
 
-### Dependency audit (`npm audit`, website)
+- Service worker starts from the bundle.
+- `HELLO` returns `CONNECTION_STATUS` with `connected`, version 0.1.0, protocol 1.
+- `PREPARE_PROMPT` for five tasks returns `GEMINI_STATUS` then `REVIEW_PROMPT`. Each is then cancelled.
+- Invalid payload, oversized resume, unknown cancel ID, wrong version, wrong channel, unknown type, and malformed request ID are all refused or ignored, as documented.
+- A non-allow-listed origin, the old root domain, and an unrelated subdomain each get **no** reply from the extension.
+- `HELLO` while a request awaits review returns `busy: true`.
+- No request reached `gemini.google.com`.
 
-| State | Advisories |
-| --- | --- |
-| Next.js 14.2.15 (supplied) | 1 critical (next), 1 high (postcss, through next), 1 high (glob, dev), and others |
-| Next.js 14.2.35 (current) | 6 total: 1 critical and 4 high in `next`, `postcss`, `glob`, `eslint-config-next`, `@next/eslint-plugin-next`, and 1 low in `esbuild` |
+## `/extension` page against the unpacked bundle (10 checks)
 
-npm reports the fix for these advisories as **Next.js 16.4.3**, a major-version change. Several advisories give 15.5.x as the fixed line. Upgrading to 14.2.35 was applied because it is a patch release within the existing minor, and it builds and passes the tests. It does **not** clear the advisories. This needs a migration decision.
-
-## Protocol browser test (fixture-based)
-
-`apps/extension/tests/bundle-protocol.e2e.js` loads the unpacked bundle into Chromium with a stubbed `https://prajwalkedari.tech` and `https://gemini.google.com`. Payloads come from `apps/web/lib/extension-bridge.ts` (`tests/fixtures/sample-payloads.json`). Sample data is fictional.
-
-| Check | Result |
-| --- | --- |
-| Service worker starts from the bundle | PASS |
-| `HELLO` returns `CONNECTION_STATUS` (connected, v1, 0.1.0) | PASS, 2 checks |
-| `PREPARE_PROMPT` for improve, generate, latex, review, extract returns `GEMINI_STATUS` then `REVIEW_PROMPT` | PASS, 5 checks |
-| `CANCEL_REQUEST` for each returns `cancelled` | PASS, 5 checks |
-| Invalid payload (tailor without job description) returns `ERROR INVALID_PAYLOAD` with the same request ID | PASS |
-| Oversized resume (20,001 characters) returns `ERROR` | PASS |
-| `CANCEL_REQUEST` with an unknown ID returns `ERROR STALE_REQUEST` | PASS |
-| Wrong protocol version gets no reply | PASS |
-| Wrong channel gets no reply | PASS |
-| Unknown message type returns `ERROR INVALID_MESSAGE` | PASS |
-| Malformed request ID returns `ERROR` or no reply | PASS |
-| Page on a non-allow-listed origin gets no reply from the extension | PASS |
-| Zero requests reached `gemini.google.com` during these tests | PASS |
-
-Observed behavior, not a failure: the extension sends the `cancelled` status twice for one cancel request. The client handles this.
-
-What this test does **not** cover: the real `prajwalkedari.tech` site, a real Gemini page, the popup approval and submit steps, and the `GEMINI_RESPONSE` and `RETURN_OUTPUT` messages.
-
-## Bug found and fixed: prepare() reported accepted requests as failed
-
-- **Found by:** the browser test. The extension sends `GEMINI_STATUS` (`awaiting-send-approval`) before `REVIEW_PROMPT`. The website bridge's `prepare()` accepted the first reply with a matching request ID.
-- **Effect:** every accepted request was reported to the user as a failure (`INTERNAL_ERROR`). The late `REVIEW_PROMPT` was then dropped.
-- **Fix:** `apps/web/lib/extension-bridge.ts` now keeps a waiter registered until it accepts the reply it needs. `prepare()` waits for `REVIEW_PROMPT` or `ERROR`. `hello()` waits for `CONNECTION_STATUS` or `ERROR`.
-- **Regression test:** `apps/web/tests/bridge-progress.test.ts`. Run against the old bridge: 2 of 5 fail. Run against the fixed bridge: 5 of 5 pass.
-
-## SEO checks
-
-Run with `NEXT_PUBLIC_SITE_ORIGIN=https://resume.prajwalkedari.tech`, served by `next start`:
+**Setup:** `apps/web` built with `NEXT_PUBLIC_SITE_ORIGIN` set, served by `next start` on port 3100. Playwright routes `resumemate.prajwalkedari.tech`, `prajwalkedari.tech`, and `unrelated.prajwalkedari.tech` to that server. The extension is loaded unpacked. **This is a local build, not the deployed site.**
 
 | Check | Result |
 | --- | --- |
-| `/robots.txt` allows all, lists `Sitemap: https://resume.prajwalkedari.tech/sitemap.xml` | PASS |
-| `/sitemap.xml` lists `/` and `/extension` with the origin | PASS |
-| `/create` has `<meta name="robots" content="noindex, nofollow">` | PASS |
-| `/create` title is `Resume workspace \| ResumeMate` | PASS |
-| `/extension` has an absolute canonical link | PASS |
-| Unknown route returns HTTP 404 | PASS |
-| `/` has title, description, Open Graph, and Twitter tags | PASS |
+| Page starts in the idle state, with no "connected" before a check | PASS |
+| Production origin with extension: "ResumeMate Assistant is connected." | PASS |
+| Connected view shows version 0.1.0 and protocol v1 | PASS |
+| No simulation or mock controls | PASS |
+| Refresh, then check again: connected | PASS |
+| Old root domain `/extension`: "was not detected" (no false connection) | PASS |
+| Unrelated subdomain `/extension`: "was not detected" | PASS |
+| No extension installed: "was not detected", with installation link | PASS |
+| Not-detected view offers Retry | PASS |
+| Page still renders without the extension | PASS |
 
-Run without the origin: `/` has no canonical link and no `og:url`, and the sitemap is empty. PASS.
+## Bugs and gaps found in this pass
 
-Not run: Lighthouse, Core Web Vitals, and any validator for Open Graph or structured data.
+- **The page never checked anything.** The check button only showed a notice. It now runs a real handshake through the bridge and reports states from the reply.
+- **The bridge discarded the extension's version and protocol.** `hello()` now returns a verified result object. A reply with a missing protocol version is "error", not "incompatible".
+- **Dev simulation was visible in the UI.** The mock switch is removed.
+- **Old domains in the bundle.** The manifest and four bundle constants moved to `https://resumemate.prajwalkedari.tech`. Bundle changes were made by editing the built files, because no source is available.
 
-## Links and image paths
-
-The relative links and image paths in `README.md`, `docs/`, and `apps/*/README.md` all resolve. The README image is `docs/assets/architecture.svg`, which is well-formed XML.
-
-## Not executed, and why
+## Not tested, and why
 
 | Item | Reason |
 | --- | --- |
-| Cross-repo bridge tests (`apps/web/tests/extension-bridge.test.ts`, 20 tests) | The extension's `src/` is not in the supplied bundle. |
-| Extension unit tests (102) and security lint from `docs/INTEGRATION-STATUS.md` | Carried over from an earlier session that had the source. Not re-run. |
-| Extension TypeScript typecheck and build | Source not present. |
-| Live handshake with the deployed website | Domains did not resolve from the sandbox. |
-| Live Gemini (submit, response capture) | No signed-in Google session. |
-| Popup approval and submit flow | Requires a live Gemini page or a fixture of it. Not built. |
-| Upload UI (import of PDF and `.tex`) | Import is not connected to the UI. |
-| Compile isolation (network, memory, file-size limits) | No isolated host. |
-| GitHub Actions workflow (`.github/workflows/ci.yml`) | Not run on GitHub. |
-| Search Console and sitemap submission | Domain not confirmed live. |
+| Deployed site and any live handshake with it | The host did not respond from the build sandbox. DNS and Vercel are not set up here. |
+| Extension disabled, or the site loaded while the extension is turned off | Not automated in this pass. Covered only by the not-detected path (no extension). |
+| Busy state through the page UI | Covered at protocol level (`busy: true`). Not reached through the page. |
+| Incompatible protocol version | Covered by unit tests only. The real bundle always replies with protocol 1. |
+| Live Gemini, popup approval, and submission | Not built into a test. |
+| Cross-repo bridge tests | Extension source missing. |
+| Extension TypeScript typecheck, lint, and unit tests | Extension source missing. The bundle has no tests of its own besides the browser tests above. |
+| Chrome Web Store | Not set up. |
 
-## Known failures
+## Remaining blockers
 
-- **Website `npm audit`**: 1 critical and 4 high advisories remain (see above). Not fixed. Fixes need Next.js 15.5 or 16.
-- **Cross-repo bridge tests**: blocked, not failing. They would need the extension source.
-
-## Remaining release blockers
-
-1. **Production origin.** Decide between `https://resume.prajwalkedari.tech` and `https://prajwalkedari.tech`. The bundle allows only `https://prajwalkedari.tech`. Changing it needs the extension source and a rebuild.
-2. **Extension source.** Add the TypeScript source, tests, and build script to `apps/extension` so the cross-repo tests run and the bundle can be rebuilt.
-3. **Next.js security upgrade.** Decide whether to move to Next.js 15.5 or 16. This is a framework change.
-4. **Hosting provider.** None is configured.
-5. **Domain check.** Confirm the chosen domain resolves to the deployed site.
-6. **Live Gemini test.** Run the approval flow with a signed-in account and record the result as a dated entry.
-7. **Compile service.** Deploy only in an isolated environment, or leave LaTeX compilation off.
+1. **Deploy and verify.** Deploy the website to Vercel with `NEXT_PUBLIC_SITE_ORIGIN` set, attach the domain, then run the checklist in `DEPLOYMENT.md`.
+2. **Extension source.** Add the TypeScript source so the origin, the handshake, and the bundle can be changed and rebuilt at source level. Until then, the bundle is edited directly.
+3. **Next.js upgrade.** The 14.2 line keeps its advisories. A migration to 15.5 or 16 is needed to clear them.
+4. **Users update the extension.** Old installs only trust the old root domain. Every user must reload or reinstall the extension.

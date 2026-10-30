@@ -4,7 +4,7 @@ var define_DEV_WEBSITE_ORIGINS_default = [];
 // src/shared/constants.ts
 var EXTENSION_VERSION = "0.1.0";
 var PROTOCOL_VERSION = 1;
-var PRODUCTION_WEBSITE_ORIGIN = "https://prajwalkedari.tech";
+var PRODUCTION_WEBSITE_ORIGIN = "https://resumemate.prajwalkedari.tech";
 var GEMINI_ORIGIN = "https://gemini.google.com";
 var GEMINI_APP_URL = "https://gemini.google.com/app";
 var GEMINI_TAB_PATTERN = "https://gemini.google.com/*";

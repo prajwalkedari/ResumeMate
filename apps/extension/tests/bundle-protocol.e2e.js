@@ -1,5 +1,6 @@
 // Browser test: loads the unpacked ResumeMate Assistant bundle into Chromium and checks its protocol replies.
-// Fixture-based. Uses a stubbed prajwalkedari.tech and gemini.google.com. It does NOT contact live sites or Gemini.
+// Fixture-based. Uses stubbed https://resumemate.prajwalkedari.tech, the old root domain, an unrelated subdomain,
+// and gemini.google.com. It does NOT contact live sites or Gemini.
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
@@ -16,14 +17,17 @@ const check = (name, ok, detail) => { results.push({ name, ok, detail }); consol
   });
   let geminiRequests = 0;
   await ctx.route('https://gemini.google.com/**', (r) => { geminiRequests++; r.fulfill({ status: 200, body: '' }); });
-  await ctx.route('https://prajwalkedari.tech/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><html><head><title>fixture</title></head><body>fixture</body></html>' }));
+  const fixturePage = (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><html><head><title>fixture</title></head><body>fixture</body></html>' });
+  await ctx.route('https://resumemate.prajwalkedari.tech/**', fixturePage);
+  await ctx.route('https://prajwalkedari.tech/**', fixturePage);
+  await ctx.route('https://unrelated.prajwalkedari.tech/**', fixturePage);
   await ctx.route('https://evil.example/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><html><body>other origin</body></html>' }));
 
   let sw = ctx.serviceWorkers()[0] || await ctx.waitForEvent('serviceworker', { timeout: 20000 });
   check('service worker starts from bundle', !!sw, sw && sw.url());
 
   const page = await ctx.newPage();
-  await page.goto('https://prajwalkedari.tech/');
+  await page.goto('https://resumemate.prajwalkedari.tech/');
   await page.waitForTimeout(1500);
 
   // Helper: posts an envelope like the website bridge and waits for a reply with a matching requestId.
@@ -98,6 +102,28 @@ const check = (name, ok, detail) => { results.push({ name, ok, detail }); consol
     setTimeout(() => resolve(log), 2500);
   }));
   check('non-allow-listed origin -> no reply from extension', foreign.length === 0, foreign);
+
+  // 10. The old root domain and an unrelated subdomain must not get replies (exact-origin allow-list).
+  for (const [label, url] of [['old root domain', 'https://prajwalkedari.tech/'], ['unrelated subdomain', 'https://unrelated.prajwalkedari.tech/']]) {
+    const p2 = await ctx.newPage();
+    await p2.goto(url);
+    await p2.waitForTimeout(800);
+    const replies = await p2.evaluate(() => new Promise((resolve) => {
+      const log = [];
+      const h = (e) => { if (e.source === window && e.data && e.data.direction === 'to-page') log.push(e.data); };
+      window.addEventListener('message', h);
+      window.postMessage({ channel: 'resumemate-web', v: 1, direction: 'to-extension', message: { type: 'HELLO', requestId: 'rm-origin-0001' } }, window.location.origin);
+      setTimeout(() => resolve(log), 2500);
+    }));
+    check(`${label} (${url}) -> no extension reply`, replies.length === 0, replies);
+    await p2.close();
+  }
+
+  // 11. Busy: while a request is awaiting review, HELLO reports busy:true (still verified).
+  await send({ type: 'PREPARE_PROMPT', requestId: 'rm-busy-00001', payload: P.improve.payload });
+  const busy = await send({ type: 'HELLO', requestId: 'rm-busy-hello1' });
+  check('HELLO while a request is pending -> CONNECTION_STATUS busy:true', busy && busy.type === 'CONNECTION_STATUS' && busy.busy === true, busy);
+  await collect({ type: 'CANCEL_REQUEST', requestId: 'rm-busy-00001' });
 
   check('no request reached gemini.google.com during protocol tests', geminiRequests === 0, { geminiRequests });
 

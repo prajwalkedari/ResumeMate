@@ -22,7 +22,7 @@ Please report security issues privately to the maintainer. A public contact has 
 
 ## Permissions
 
-The extension requests only `storage`, plus two host permissions: `https://gemini.google.com/*` and `https://prajwalkedari.tech/*`.
+The extension requests only `storage`, plus two host permissions: `https://gemini.google.com/*` and `https://resumemate.prajwalkedari.tech/*`.
 
 ## Known risks and limits
 

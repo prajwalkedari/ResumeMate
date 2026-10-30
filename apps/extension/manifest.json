@@ -26,7 +26,7 @@
   ],
   "host_permissions": [
     "https://gemini.google.com/*",
-    "https://prajwalkedari.tech/*"
+    "https://resumemate.prajwalkedari.tech/*"
   ],
   "content_scripts": [
     {
@@ -41,7 +41,7 @@
     },
     {
       "matches": [
-        "https://prajwalkedari.tech/*"
+        "https://resumemate.prajwalkedari.tech/*"
       ],
       "js": [
         "content/resumemate.js"

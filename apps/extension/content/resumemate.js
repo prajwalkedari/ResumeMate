@@ -5,7 +5,7 @@
 
   // src/shared/constants.ts
   var PROTOCOL_VERSION = 1;
-  var PRODUCTION_WEBSITE_ORIGIN = "https://prajwalkedari.tech";
+  var PRODUCTION_WEBSITE_ORIGIN = "https://resumemate.prajwalkedari.tech";
   var devOrigins = typeof define_DEV_WEBSITE_ORIGINS_default === "undefined" ? [] : define_DEV_WEBSITE_ORIGINS_default;
   var WEBSITE_ORIGINS = [PRODUCTION_WEBSITE_ORIGIN, ...devOrigins];
   var LIMITS = {

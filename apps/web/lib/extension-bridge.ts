@@ -184,7 +184,54 @@ export interface BridgeHost {
   isOwnWindow(source: unknown): boolean;
 }
 
-export type HelloResult = 'connected' | 'busy' | 'not-detected';
+/**
+ * Result of a handshake. `connected` and `busy` are reported only after a valid CONNECTION_STATUS
+ * reply from the extension, with a matching request ID and protocol version.
+ * `not-installed` means no reply arrived before the timeout. The extension may be missing,
+ * disabled, or not allowed on this origin. The page cannot tell these apart.
+ */
+export type HelloState = 'connected' | 'busy' | 'not-installed' | 'incompatible' | 'error';
+export interface HelloResult {
+  state: HelloState;
+  /** Set only from a verified CONNECTION_STATUS reply. */
+  extensionVersion: string | null;
+  /** Set only from a verified CONNECTION_STATUS reply. */
+  protocolVersion: number | null;
+  /** Error code from an ERROR reply, when there is one. */
+  code: string | null;
+}
+
+/** Turns a reply to HELLO into a verified result. Exported so it can be tested without a browser. */
+export function interpretHelloReply(reply: BridgeReply | null): HelloResult {
+  if (reply === null) {
+    return { state: 'not-installed', extensionVersion: null, protocolVersion: null, code: 'TIMEOUT' };
+  }
+  if (reply.type === 'CONNECTION_STATUS') {
+    const version = typeof reply.extensionVersion === 'string' ? reply.extensionVersion : null;
+    const protocol = typeof reply.protocolVersion === 'number' ? reply.protocolVersion : null;
+    if (version === null || protocol === null || reply.connected !== true) {
+      return { state: 'error', extensionVersion: null, protocolVersion: null, code: 'MALFORMED_REPLY' };
+    }
+    if (protocol !== BRIDGE_VERSION) {
+      return { state: 'incompatible', extensionVersion: version, protocolVersion: protocol, code: 'PROTOCOL_MISMATCH' };
+    }
+    return {
+      state: reply.busy === true ? 'busy' : 'connected',
+      extensionVersion: version,
+      protocolVersion: protocol,
+      code: null,
+    };
+  }
+  if (reply.type === 'ERROR') {
+    return {
+      state: 'error',
+      extensionVersion: null,
+      protocolVersion: null,
+      code: typeof reply.code === 'string' ? reply.code : 'INTERNAL_ERROR',
+    };
+  }
+  return { state: 'error', extensionVersion: null, protocolVersion: null, code: 'UNEXPECTED_REPLY' };
+}
 export type PrepareResult =
   | { ok: true; requestId: string }
   | { ok: false; code: string; message: string };
@@ -253,9 +300,7 @@ export class ExtensionBridge {
     this.send({ type: 'HELLO', requestId });
     const reply = await this.awaitReply(requestId, timeoutMs, (r) => r.type === 'CONNECTION_STATUS' || r.type === 'ERROR');
     this.sent.delete(requestId);
-    if (!reply) return 'not-detected';
-    if (reply.type === 'CONNECTION_STATUS') return reply.busy === true ? 'busy' : 'connected';
-    return 'not-detected';
+    return interpretHelloReply(reply);
   }
 
   /** Queues a request for the user to review inside the extension. Nothing reaches Gemini here. */

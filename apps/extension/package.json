@@ -7,7 +7,8 @@
     "verify:manifest": "node scripts/verify-manifest.mjs",
     "package": "node scripts/package.mjs",
     "test:e2e": "node tests/bundle-protocol.e2e.js",
-    "test": "npm run verify:manifest && npm run test:e2e"
+    "test": "npm run verify:manifest && npm run test:e2e",
+    "test:site": "node tests/site-handshake.e2e.js"
   },
   "devDependencies": {
     "playwright": "1.63.0"

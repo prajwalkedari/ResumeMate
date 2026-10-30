@@ -12,7 +12,8 @@ This is the **built bundle** of the extension, not its source. The archive suppl
 npm install          # Playwright is used only by the browser test
 npm run verify:manifest   # manifest, referenced files, permissions, and no dev origins in the bundle
 npm run package           # writes dist/resumemate-assistant-0.1.0.zip
-npm run test:e2e          # loads the unpacked bundle in Chromium and checks the protocol (fixture-based)
+npm run test:e2e          # loads the unpacked bundle in Chromium and checks the protocol (fixture-based, 25 checks)
+npm run test:site         # the /extension page with the bundle; needs the website on port 3100
 ```
 
 `test:e2e` uses the Chromium that is installed in the environment (`channel: 'chromium'`). If it is missing, install a browser with `npx playwright install chromium` and adjust the channel.
@@ -27,4 +28,5 @@ Chrome Web Store distribution is not set up. See `docs/DEPLOYMENT.md`.
 ## Permissions
 
 - `storage`: stores the active request and a draft.
-- Host access: `https://gemini.google.com/*` and `https://prajwalkedari.tech/*`. The website origin is not yet `https://resume.prajwalkedari.tech`. See `docs/DOCUMENTATION-AUDIT.md`.
+- Host access: `https://gemini.google.com/*` and `https://resumemate.prajwalkedari.tech/*` (the exact production origin, no wildcards).
+- Website content script: matches only `https://resumemate.prajwalkedari.tech/*`.

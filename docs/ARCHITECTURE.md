@@ -20,7 +20,7 @@ docs/           Architecture, integration, deployment, security, SEO, and test r
 | Import checks | `apps/web/lib/pdf-import.ts`, `apps/web/lib/latex-import.ts` | Library code for text-PDF and `.tex` checks. Not connected to the upload UI. |
 | Compile wrapper | `apps/web/services/latex-compile/compile.mjs` | Runs `pdflatex` with shell escape off. Not a sandbox. Not deployed. |
 | Extension background | `apps/extension/background/service-worker.js` | Validates messages, holds the active request, talks to the Gemini tab, returns output. |
-| Website content script | `apps/extension/content/resumemate.js` | Runs on `https://prajwalkedari.tech/*`. Relays messages between the page and the service worker. Checks the sender and origin. |
+| Website content script | `apps/extension/content/resumemate.js` | Runs on `https://resumemate.prajwalkedari.tech/*`. Relays messages between the page and the service worker. Checks the sender and origin. |
 | Gemini content script | `apps/extension/content/gemini.js` | Runs on `https://gemini.google.com/app*`. Places and submits prompts only on user approval. |
 | Popup | `apps/extension/popup/` | Shows the request for review and the approval controls. |
 

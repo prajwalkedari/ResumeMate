@@ -49,7 +49,7 @@ See `docs/INTEGRATION-STATUS.md` for the verified status of the frontend, the Ch
 | Project | ResumeMate |
 | Purpose | Helps job seekers prepare a resume, review generated content before anything is sent to Gemini, and produce a PDF. |
 | Author / maintainer name | **Pending.** Not stated in any project file. Add it here once it is confirmed. |
-| Website | https://prajwalkedari.tech (provided by the project owner. Not independently verified from this environment.) |
+| Website | https://resumemate.prajwalkedari.tech (provided by the project owner. Not independently verified from this environment.) |
 | Repository | Pending. No Git repository exists in the uploaded project. |
 | Contact / support | Pending. Not published here. |
 | License | **Pending.** No license has been chosen. Until one is added, all rights are reserved by the owner. |

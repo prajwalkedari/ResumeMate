@@ -43,10 +43,10 @@ Nothing is sent to Gemini automatically.
 | Area | Status | Notes |
 | --- | --- | --- |
 | Resume entry, templates, preview | Working | Fictional sample data only. Drafts are held in memory and are lost on reload. |
-| Website build, lint, typecheck, and tests | Passing | 43 of 43 tests. See [`docs/TEST-REPORT.md`](docs/TEST-REPORT.md). |
-| Extension manifest, packaging, and protocol | Passing (fixture) | 22 of 22 browser checks against the shipped bundle. |
-| Website connected to the extension | Not yet | The `/extension` page shows "Not Installed" in production. No live handshake runs from the page. |
-| Live website-to-extension handshake | Not verified | The production domain did not resolve from the build environment. |
+| Website build, lint, typecheck, and tests | Passing | 51 of 51 tests. See [`docs/TEST-REPORT.md`](docs/TEST-REPORT.md). |
+| Extension manifest, packaging, and protocol | Passing (fixture) | Manifest verified. 25 of 25 protocol checks on the unpacked bundle. |
+| Website-to-extension connection check | Working (local test) | The `/extension` page runs a real handshake on click. Verified in Chromium with the unpacked extension, with the site served locally under the production hostname. |
+| Deployed site `https://resumemate.prajwalkedari.tech` | Not verified | The host did not respond from the build sandbox. Deploy and test using `docs/DEPLOYMENT.md`. |
 | Gemini generation | Not yet | `/generate` simulates progress. No request is sent. |
 | PDF output | Not yet | "Download PDF (demo)" creates no file. |
 | PDF and LaTeX import | Library only | Code and tests exist. Not connected to the upload UI. OCR is not run. |
@@ -173,10 +173,11 @@ cd apps/extension
 npm install
 npm run verify:manifest     # manifest, files, permissions, no development origins
 npm run package             # dist/resumemate-assistant-0.1.0.zip
-npm run test:e2e           # loads the bundle in Chromium (fixture-based)
+npm run test:e2e           # loads the bundle in Chromium (fixture-based, 25 checks)
+npm run test:site          # /extension page with the bundle; website served locally on port 3100
 ```
 
-To try it locally, open `chrome://extensions`, turn on Developer mode, choose **Load unpacked**, and select `apps/extension`. Its production origin is currently `https://prajwalkedari.tech`, so the handshake works only there.
+To try it locally, open `chrome://extensions`, turn on Developer mode, choose **Load unpacked**, and select `apps/extension`. It accepts messages only from `https://resumemate.prajwalkedari.tech`. Extensions installed before this version trusted the old domain, so reload or reinstall the extension.
 
 ---
 
@@ -214,24 +215,21 @@ Full results and blockers: [`docs/TEST-REPORT.md`](docs/TEST-REPORT.md).
 | Check | Scope | Result |
 | --- | --- | --- |
 | Website lint, typecheck, build | Code and build | Pass |
-| Website tests | Bridge regression (5) and PDF/LaTeX import and compile (38) | 43 of 43 |
+| Website tests | Bridge state logic and ordering (13), PDF/LaTeX import and compile (38) | 51 of 51 |
+| `/extension` page with the unpacked extension | Chromium, website served locally under the production hostname | 10 of 10 |
 | Extension manifest and packaging | Bundle | Pass |
-| Extension browser protocol test | Chromium, stubbed website and Gemini | 22 of 22 |
+| Extension browser protocol test | Chromium, stubbed origins and Gemini | 25 of 25 |
 | Cross-repo bridge tests | Needs the extension source | **Blocked**, not run |
 
-These are **fixture tests**. They do not contact the live website or Gemini. The live tests still to do are listed in `docs/TEST-REPORT.md`.
+Browser tests use a local build of the website and a stubbed Gemini. They do **not** test the deployed site or live Gemini. The remaining live tests are listed in `docs/TEST-REPORT.md`.
 
 ---
 
 ## Deployment
 
-No hosting provider is configured yet. The website needs a Node runtime (`npm run start`), because the Gemini route and compile service will not work on static-only hosting. The extension is distributed as a packaged zip. See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+The website is hosted on **Vercel**, from `apps/web` (set the project's root directory to `apps/web`). Set `NEXT_PUBLIC_SITE_ORIGIN=https://resumemate.prajwalkedari.tech` for production, and attach that domain. The extension is distributed as a zip. Users must reload or reinstall it after this version. Full steps, the post-deploy checklist, and rollback are in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
-Before release:
-
-1. Confirm the production origin. The website and the extension must use the same one.
-2. Add the extension source, then rebuild with that origin.
-3. Decide on the Next.js upgrade (see Security).
+Production status: **not yet deployed or verified** from this environment.
 
 ---
 
