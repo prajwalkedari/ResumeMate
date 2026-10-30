@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'"
+    />
+    <title>ResumeMate Assistant</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">R</span>
+        <h1>ResumeMate Assistant</h1>
+      </div>
+      <ul class="status-row" aria-label="Connection status">
+        <li>
+          <span class="label">ResumeMate</span>
+          <span id="pill-website" class="pill">Checking…</span>
+        </li>
+        <li>
+          <span class="label">Gemini</span>
+          <span id="pill-gemini" class="pill">Checking…</span>
+        </li>
+      </ul>
+    </header>
+
+    <main>
+      <p id="notice" class="notice" role="status" aria-live="polite" hidden></p>
+      <p id="source-banner" class="banner" hidden></p>
+
+      <!-- Input form: shown when there is no active request -->
+      <section id="view-form" aria-labelledby="form-title">
+        <h2 id="form-title">New request</h2>
+        <p class="muted">
+          Works in standalone mode without a ResumeMate tab. You can copy the result from here.
+        </p>
+        <form id="request-form" novalidate>
+          <div class="field">
+            <label for="task">Task</label>
+            <select id="task" name="task"></select>
+          </div>
+          <div class="field">
+            <label for="template">Resume template</label>
+            <select id="template" name="template"></select>
+          </div>
+          <div class="field">
+            <label for="output-format">Output format</label>
+            <select id="output-format" name="outputFormat"></select>
+          </div>
+          <div class="field">
+            <label for="resume-text">Resume text <span class="hint">paste or structured notes</span></label>
+            <textarea id="resume-text" name="resumeText" rows="7" maxlength="20000" spellcheck="false"></textarea>
+            <p class="counter" id="resume-count"></p>
+          </div>
+          <div class="field">
+            <label for="job-description">Job description <span class="hint">required for tailoring</span></label>
+            <textarea id="job-description" name="jobDescription" rows="4" maxlength="10000"></textarea>
+            <p class="counter" id="job-count"></p>
+          </div>
+          <div class="field">
+            <label for="custom-instructions">Custom instructions <span class="hint">optional</span></label>
+            <textarea id="custom-instructions" name="customInstructions" rows="2" maxlength="1000"></textarea>
+          </div>
+          <p id="form-error" class="notice error" role="alert" hidden></p>
+          <div class="actions">
+            <button type="submit" id="btn-prepare" class="btn primary">Prepare prompt</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Review: the user approves sharing with Gemini -->
+      <section id="view-review" aria-labelledby="review-title" hidden>
+        <h2 id="review-title">Review before sending</h2>
+        <dl class="summary">
+          <div><dt>Task</dt><dd id="review-task"></dd></div>
+          <div><dt>Resume shared</dt><dd id="review-resume"></dd></div>
+          <div><dt>Job description</dt><dd id="review-job"></dd></div>
+        </dl>
+        <p class="privacy" role="note">
+          <strong>Privacy:</strong> Clicking <em>Send to Gemini</em> places this prompt, including your resume
+          and job description, into the Gemini tab in your browser. Google processes what you submit under
+          its own terms. ResumeMate Assistant does not send your data anywhere else. Nothing is submitted
+          until you confirm in the next step.
+        </p>
+        <label for="prompt-editor" class="field-label">Generated prompt (you can edit it)</label>
+        <textarea id="prompt-editor" rows="12" spellcheck="false"></textarea>
+        <p class="counter" id="prompt-count"></p>
+        <div class="actions">
+          <button type="button" id="btn-send-gemini" class="btn primary">Send to Gemini</button>
+          <button type="button" id="btn-copy-prompt" class="btn">Copy prompt</button>
+          <button type="button" id="btn-cancel-review" class="btn">Cancel</button>
+        </div>
+      </section>
+
+      <!-- Progress: opening, inserting, waiting, and error states -->
+      <section id="view-progress" aria-labelledby="progress-title" hidden>
+        <h2 id="progress-title"></h2>
+        <p id="progress-message" class="message" aria-live="polite"></p>
+        <div class="actions">
+          <button type="button" id="btn-confirm-submit" class="btn primary" hidden>Confirm submission</button>
+          <button type="button" id="btn-retry-insert" class="btn primary" hidden>Retry</button>
+          <button type="button" id="btn-open-gemini" class="btn" hidden>Open Gemini</button>
+          <button type="button" id="btn-copy-prompt-manual" class="btn" hidden>Copy prompt for manual paste</button>
+          <button type="button" id="btn-retry-extract-progress" class="btn" hidden>Retry extraction</button>
+          <button type="button" id="btn-cancel-progress" class="btn">Cancel request</button>
+        </div>
+      </section>
+
+      <!-- Output: review the extracted response before transfer -->
+      <section id="view-output" aria-labelledby="output-title" hidden>
+        <h2 id="output-title">Response ready</h2>
+        <ul id="output-warnings" class="warnings" hidden></ul>
+        <label for="output-text" class="field-label">Gemini response</label>
+        <textarea id="output-text" rows="12" readonly spellcheck="false"></textarea>
+        <div class="actions">
+          <button type="button" id="btn-copy-response" class="btn">Copy response</button>
+          <button type="button" id="btn-copy-latex" class="btn" hidden>Copy LaTeX source</button>
+          <button type="button" id="btn-retry-extract" class="btn">Retry extraction</button>
+        </div>
+        <div class="transfer">
+          <label class="checkbox">
+            <input type="checkbox" id="confirm-transfer" />
+            <span>I have reviewed this output.</span>
+          </label>
+          <p id="transfer-target" class="muted"></p>
+          <div class="actions">
+            <button type="button" id="btn-transfer" class="btn primary" disabled>Send to ResumeMate</button>
+            <button type="button" id="btn-discard" class="btn">Discard response</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Final: the request finished or was cancelled -->
+      <section id="view-final" aria-labelledby="final-title" hidden>
+        <h2 id="final-title"></h2>
+        <p id="final-message" class="message"></p>
+        <div class="actions">
+          <button type="button" id="btn-new-request" class="btn primary">Start a new request</button>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <button type="button" id="btn-clear" class="btn subtle">Clear current input and output</button>
+        <details class="troubleshooting">
+          <summary>Troubleshooting</summary>
+          <ul>
+            <li>If Gemini asks you to sign in, sign in in its tab, then press Retry. ResumeMate never sees your Google password.</li>
+            <li>After installing or updating the extension, reload any open Gemini or ResumeMate tabs.</li>
+            <li>If the message box is not found, copy the prompt and paste it into Gemini yourself.</li>
+            <li>Always check Gemini's response before using it. ResumeMate never submits anything without your confirmation.</li>
+          </ul>
+        </details>
+      </footer>
+    </main>
+
+    <script type="module" src="main.js"></script>
+  </body>
+</html>

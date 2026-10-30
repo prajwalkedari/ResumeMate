@@ -1,0 +1,19 @@
+{
+  "name": "resumemate",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ResumeMate monorepo: website (apps/web) and ResumeMate Assistant extension (apps/extension). Each app keeps its own package manager setup.",
+  "scripts": {
+    "web:install": "npm --prefix apps/web ci",
+    "web:dev": "npm --prefix apps/web run dev",
+    "web:lint": "npm --prefix apps/web run lint",
+    "web:typecheck": "npm --prefix apps/web run typecheck",
+    "web:test": "npm --prefix apps/web test",
+    "web:build": "npm --prefix apps/web run build",
+    "ext:install": "npm --prefix apps/extension install",
+    "ext:verify": "npm --prefix apps/extension run verify:manifest",
+    "ext:package": "npm --prefix apps/extension run package",
+    "ext:test": "npm --prefix apps/extension run test:e2e",
+    "check": "npm run web:lint && npm run web:typecheck && npm run web:test && npm run web:build && npm run ext:verify && npm run ext:package"
+  }
+}

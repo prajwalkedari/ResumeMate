@@ -1,0 +1,15 @@
+{
+  "name": "resumemate-assistant",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ResumeMate Assistant Chrome extension (Manifest V3). Distributed as a built bundle; TypeScript source is not included in this repository yet.",
+  "scripts": {
+    "verify:manifest": "node scripts/verify-manifest.mjs",
+    "package": "node scripts/package.mjs",
+    "test:e2e": "node tests/bundle-protocol.e2e.js",
+    "test": "npm run verify:manifest && npm run test:e2e"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
+  }
+}

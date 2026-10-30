@@ -1,0 +1,64 @@
+{
+  "improve": {
+    "ok": true,
+    "payload": {
+      "task": "improve",
+      "template": "none",
+      "outputFormat": "markdown",
+      "resumeText": "Name: Alex Morgan\nEmail: alex.morgan@example.com\nCity: Example City, Country\nLinkedIn: linkedin.com/in/alex-morgan-example\nGitHub: github.com/alex-morgan-example\nPortfolio: alex-morgan.example.com\n\nProfessional summary:\nSoftware engineer with a background in data analysis and backend services. Builds REST APIs, containerised deployments, and small open-source tools. Seeking an applied engineering role in machine learning.\n\nEducation:\n- Degree: B.Sc. in Computer Science | Institution: Example State University | Year: 2020 – 2024 | Coursework: Algorithms, Databases, Machine Learning, Operating Systems\n\nExperience:\n- Role: Data Analyst Intern | Company: Sample Analytics Ltd. | Dates: 2023 – 2024 | Details: Completed a six-month analytics internship.\nAnalysed sales data with Pandas and NumPy and produced weekly reports for the operations team.\nWrote SQL queries for reporting dashboards.\n\nSkills:\n- Languages: Python, SQL, JavaScript, Java\n- Frameworks: FastAPI, Flask, Express.js\n- Databases: PostgreSQL, MySQL, SQLite\n- Tools: Linux, Git, Docker, pandas, scikit-learn\n\nProjects:\n- Title: Example CLI Toolkit | Technologies: Python, Linux CLI, packaging | Link: github.com/alex-morgan-example/cli-toolkit | Details: Published an open-source command-line utility with automated tests and documentation.\n- Title: Malware Classifier Prototype | Technologies: Python, FastAPI, XGBoost, Docker | Link: github.com/alex-morgan-example/classifier | Details: Trained a classifier on file-header features and served predictions through a REST API.\n\nCertifications:\n- Name: Introductory Machine Learning Course | Issuer: Example Online Academy | Year: 2023\n\nAchievements:\n- Title: Regional programming contest | Details: Placed in the top ten teams.",
+      "jobDescription": "Target job title: Applied Machine Learning Engineer",
+      "customInstructions": ""
+    }
+  },
+  "tailor": {
+    "ok": false,
+    "errors": [
+      "Add a job description before tailoring the resume to it."
+    ]
+  },
+  "generate": {
+    "ok": true,
+    "payload": {
+      "task": "generate",
+      "template": "none",
+      "outputFormat": "markdown",
+      "resumeText": "Name: Alex Morgan\nEmail: alex.morgan@example.com\nCity: Example City, Country\nLinkedIn: linkedin.com/in/alex-morgan-example\nGitHub: github.com/alex-morgan-example\nPortfolio: alex-morgan.example.com\n\nProfessional summary:\nSoftware engineer with a background in data analysis and backend services. Builds REST APIs, containerised deployments, and small open-source tools. Seeking an applied engineering role in machine learning.\n\nEducation:\n- Degree: B.Sc. in Computer Science | Institution: Example State University | Year: 2020 – 2024 | Coursework: Algorithms, Databases, Machine Learning, Operating Systems\n\nExperience:\n- Role: Data Analyst Intern | Company: Sample Analytics Ltd. | Dates: 2023 – 2024 | Details: Completed a six-month analytics internship.\nAnalysed sales data with Pandas and NumPy and produced weekly reports for the operations team.\nWrote SQL queries for reporting dashboards.\n\nSkills:\n- Languages: Python, SQL, JavaScript, Java\n- Frameworks: FastAPI, Flask, Express.js\n- Databases: PostgreSQL, MySQL, SQLite\n- Tools: Linux, Git, Docker, pandas, scikit-learn\n\nProjects:\n- Title: Example CLI Toolkit | Technologies: Python, Linux CLI, packaging | Link: github.com/alex-morgan-example/cli-toolkit | Details: Published an open-source command-line utility with automated tests and documentation.\n- Title: Malware Classifier Prototype | Technologies: Python, FastAPI, XGBoost, Docker | Link: github.com/alex-morgan-example/classifier | Details: Trained a classifier on file-header features and served predictions through a REST API.\n\nCertifications:\n- Name: Introductory Machine Learning Course | Issuer: Example Online Academy | Year: 2023\n\nAchievements:\n- Title: Regional programming contest | Details: Placed in the top ten teams.",
+      "jobDescription": "Target job title: Applied Machine Learning Engineer",
+      "customInstructions": ""
+    }
+  },
+  "latex": {
+    "ok": true,
+    "payload": {
+      "task": "latex",
+      "template": "none",
+      "outputFormat": "latex",
+      "resumeText": "Name: Alex Morgan\nEmail: alex.morgan@example.com\nCity: Example City, Country\nLinkedIn: linkedin.com/in/alex-morgan-example\nGitHub: github.com/alex-morgan-example\nPortfolio: alex-morgan.example.com\n\nProfessional summary:\nSoftware engineer with a background in data analysis and backend services. Builds REST APIs, containerised deployments, and small open-source tools. Seeking an applied engineering role in machine learning.\n\nEducation:\n- Degree: B.Sc. in Computer Science | Institution: Example State University | Year: 2020 – 2024 | Coursework: Algorithms, Databases, Machine Learning, Operating Systems\n\nExperience:\n- Role: Data Analyst Intern | Company: Sample Analytics Ltd. | Dates: 2023 – 2024 | Details: Completed a six-month analytics internship.\nAnalysed sales data with Pandas and NumPy and produced weekly reports for the operations team.\nWrote SQL queries for reporting dashboards.\n\nSkills:\n- Languages: Python, SQL, JavaScript, Java\n- Frameworks: FastAPI, Flask, Express.js\n- Databases: PostgreSQL, MySQL, SQLite\n- Tools: Linux, Git, Docker, pandas, scikit-learn\n\nProjects:\n- Title: Example CLI Toolkit | Technologies: Python, Linux CLI, packaging | Link: github.com/alex-morgan-example/cli-toolkit | Details: Published an open-source command-line utility with automated tests and documentation.\n- Title: Malware Classifier Prototype | Technologies: Python, FastAPI, XGBoost, Docker | Link: github.com/alex-morgan-example/classifier | Details: Trained a classifier on file-header features and served predictions through a REST API.\n\nCertifications:\n- Name: Introductory Machine Learning Course | Issuer: Example Online Academy | Year: 2023\n\nAchievements:\n- Title: Regional programming contest | Details: Placed in the top ten teams.",
+      "jobDescription": "Target job title: Applied Machine Learning Engineer",
+      "customInstructions": ""
+    }
+  },
+  "review": {
+    "ok": true,
+    "payload": {
+      "task": "review",
+      "template": "none",
+      "outputFormat": "markdown",
+      "resumeText": "Name: Alex Morgan\nEmail: alex.morgan@example.com\nCity: Example City, Country\nLinkedIn: linkedin.com/in/alex-morgan-example\nGitHub: github.com/alex-morgan-example\nPortfolio: alex-morgan.example.com\n\nProfessional summary:\nSoftware engineer with a background in data analysis and backend services. Builds REST APIs, containerised deployments, and small open-source tools. Seeking an applied engineering role in machine learning.\n\nEducation:\n- Degree: B.Sc. in Computer Science | Institution: Example State University | Year: 2020 – 2024 | Coursework: Algorithms, Databases, Machine Learning, Operating Systems\n\nExperience:\n- Role: Data Analyst Intern | Company: Sample Analytics Ltd. | Dates: 2023 – 2024 | Details: Completed a six-month analytics internship.\nAnalysed sales data with Pandas and NumPy and produced weekly reports for the operations team.\nWrote SQL queries for reporting dashboards.\n\nSkills:\n- Languages: Python, SQL, JavaScript, Java\n- Frameworks: FastAPI, Flask, Express.js\n- Databases: PostgreSQL, MySQL, SQLite\n- Tools: Linux, Git, Docker, pandas, scikit-learn\n\nProjects:\n- Title: Example CLI Toolkit | Technologies: Python, Linux CLI, packaging | Link: github.com/alex-morgan-example/cli-toolkit | Details: Published an open-source command-line utility with automated tests and documentation.\n- Title: Malware Classifier Prototype | Technologies: Python, FastAPI, XGBoost, Docker | Link: github.com/alex-morgan-example/classifier | Details: Trained a classifier on file-header features and served predictions through a REST API.\n\nCertifications:\n- Name: Introductory Machine Learning Course | Issuer: Example Online Academy | Year: 2023\n\nAchievements:\n- Title: Regional programming contest | Details: Placed in the top ten teams.",
+      "jobDescription": "Target job title: Applied Machine Learning Engineer",
+      "customInstructions": ""
+    }
+  },
+  "extract": {
+    "ok": true,
+    "payload": {
+      "task": "extract",
+      "template": "none",
+      "outputFormat": "markdown",
+      "resumeText": "Name: Alex Morgan\nEmail: alex.morgan@example.com\nCity: Example City, Country\nLinkedIn: linkedin.com/in/alex-morgan-example\nGitHub: github.com/alex-morgan-example\nPortfolio: alex-morgan.example.com\n\nProfessional summary:\nSoftware engineer with a background in data analysis and backend services. Builds REST APIs, containerised deployments, and small open-source tools. Seeking an applied engineering role in machine learning.\n\nEducation:\n- Degree: B.Sc. in Computer Science | Institution: Example State University | Year: 2020 – 2024 | Coursework: Algorithms, Databases, Machine Learning, Operating Systems\n\nExperience:\n- Role: Data Analyst Intern | Company: Sample Analytics Ltd. | Dates: 2023 – 2024 | Details: Completed a six-month analytics internship.\nAnalysed sales data with Pandas and NumPy and produced weekly reports for the operations team.\nWrote SQL queries for reporting dashboards.\n\nSkills:\n- Languages: Python, SQL, JavaScript, Java\n- Frameworks: FastAPI, Flask, Express.js\n- Databases: PostgreSQL, MySQL, SQLite\n- Tools: Linux, Git, Docker, pandas, scikit-learn\n\nProjects:\n- Title: Example CLI Toolkit | Technologies: Python, Linux CLI, packaging | Link: github.com/alex-morgan-example/cli-toolkit | Details: Published an open-source command-line utility with automated tests and documentation.\n- Title: Malware Classifier Prototype | Technologies: Python, FastAPI, XGBoost, Docker | Link: github.com/alex-morgan-example/classifier | Details: Trained a classifier on file-header features and served predictions through a REST API.\n\nCertifications:\n- Name: Introductory Machine Learning Course | Issuer: Example Online Academy | Year: 2023\n\nAchievements:\n- Title: Regional programming contest | Details: Placed in the top ten teams.",
+      "jobDescription": "Target job title: Applied Machine Learning Engineer",
+      "customInstructions": ""
+    }
+  },
+  "requestId": "rm-821161ba-aa9f-4e5f-8adf-86b1d4b39663"
+}
