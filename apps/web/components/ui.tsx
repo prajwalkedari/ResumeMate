@@ -20,8 +20,8 @@ export function Button({ variant = 'primary', className = '', ...rest }: ButtonH
   return <button type="button" className={buttonClass(variant, className)} {...rest} />;
 }
 
-export function LinkButton({ href, variant = 'primary', children }: { href: string; variant?: Variant; children: ReactNode }) {
-  return <Link href={href} className={buttonClass(variant)}>{children}</Link>;
+export function LinkButton({ href, variant = 'primary', children, className = '' }: { href: string; variant?: Variant; children: ReactNode; className?: string }) {
+  return <Link href={href} className={`${buttonClass(variant)} ${className}`.trim()}>{children}</Link>;
 }
 
 export function Header() {

@@ -1,14 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Download, Eye, Pencil } from 'lucide-react';
+import { Download, Eye, Pencil, Trash2 } from 'lucide-react';
 import { Header, Button, LinkButton } from '@/components/ui';
 import { ResumeDocument } from '@/components/resume-document';
 import { useApp } from '@/components/providers';
 import { TEMPLATES } from '@/lib/resume';
 
 export default function PreviewPage() {
-  const { resume, template, setTemplate, notify } = useApp();
+  const { resume, template, setTemplate, notify, aiDraft, setAiDraft } = useApp();
   const [actual, setActual] = useState(false);
 
   if (!resume.personal.name) {
@@ -74,6 +74,26 @@ export default function PreviewPage() {
             </div>
           </div>
         </div>
+
+        {aiDraft && (
+          <section aria-labelledby="ai-draft-title" className="mt-12 rounded-lg border border-line bg-white p-6">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h2 id="ai-draft-title" className="text-lg font-semibold text-ink">AI draft (not part of your resume fields)</h2>
+                <p className="mt-1 text-sm text-muted">
+                  Saved {new Date(aiDraft.savedAt).toLocaleString()}. Your resume details were not changed. Copy any text you want into your details yourself.
+                </p>
+              </div>
+              <Button variant="ghost" onClick={() => { setAiDraft(null); notify('AI draft discarded.'); }}>
+                <Trash2 size={16} aria-hidden="true" />Discard draft
+              </Button>
+            </div>
+            {aiDraft.isLatex && (
+              <p className="mt-3 text-sm text-amber-900">This draft is LaTeX source and is shown as text only.</p>
+            )}
+            <pre className="mt-4 max-h-96 overflow-auto whitespace-pre-wrap rounded-md border border-line bg-paper p-4 text-sm leading-relaxed text-ink" tabIndex={0} aria-label="AI draft text">{aiDraft.text}</pre>
+          </section>
+        )}
       </main>
     </>
   );

@@ -86,7 +86,7 @@ export function ManualForm() {
       setStep(0);
       return;
     }
-    router.push('/extension');
+    router.push('/generate');
   };
 
   return (

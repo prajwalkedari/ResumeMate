@@ -15,6 +15,7 @@
     "ext:package": "npm --prefix apps/extension run package",
     "ext:test": "npm --prefix apps/extension run test:e2e",
     "check": "npm run web:lint && npm run web:typecheck && npm run web:test && npm run web:build && npm run ext:verify && npm run ext:package",
-    "ext:test:site": "npm --prefix apps/extension run test:site"
+    "ext:test:site": "npm --prefix apps/extension run test:site",
+    "ext:test:flow": "npm --prefix apps/extension run test:flow"
   }
 }

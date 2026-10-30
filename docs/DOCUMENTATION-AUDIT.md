@@ -26,3 +26,12 @@ Discrepancies between documentation and implementation, as found on 2026-10-31. 
 | 20 | Next.js 14.2.35 | Advisories with fixes only in 15.5 or 16 | Unchanged | Open (framework decision) |
 | 21 | Extension `README.md` and `docs/ARCHITECTURE.md` | "Localhost origins only in development builds" | The shipped bundles contain no development origin. The development build path is in source not present here. | Open (cannot verify without source) |
 | 22 | Website `NEXT_PUBLIC_SITE_ORIGIN` | "Not read by any code yet" (earlier `.env.example`) | Read by `lib/site.ts` (SEO only). It is not used by the extension, which has its origin compiled in. | Fixed |
+| 23 | `/generate` page | Simulated timed progress and "Simulated progress complete" | Replaced with the real workflow through the verified bridge, with extension-aware states. No simulated progress. | Fixed |
+| 24 | `/extension` connected state | No next action after a verified connection | "Continue to Create Resume" primary button links to `/create`. Version and protocol come from the handshake. | Fixed |
+| 25 | Manual form Review | Went to `/extension` | Goes to `/generate`, which checks the connection itself | Fixed (behaviour change) |
+| 26 | Generated output | No place to show it | Shown for review on `/generate`. After acceptance it appears in a labelled "AI draft" section on `/preview`. It is not merged into resume fields. | Fixed (design deviation: not merged into resume fields; see docs/TEST-REPORT.md, remaining blockers) |
+| 27 | Output "Try again" | Did nothing while output was pending | Removed. Discard first, then start again. | Fixed |
+| 28 | Accepted output | Kept in state after saving | Cleared on accept | Fixed |
+| 29 | Generation browser test | None | `apps/extension/tests/generate-flow.e2e.js`, 24 checks with a fixture Gemini page | Added (fixture only) |
+| 30 | Live Gemini generation | Never tested | Still not tested. The fixture test is not evidence about the real Gemini page. | Open (blocker) |
+| 31 | `/generate` and `/preview` in the SEO doc | "Simulated progress screen" | Updated | Fixed |

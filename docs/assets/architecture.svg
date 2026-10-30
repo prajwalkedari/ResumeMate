@@ -72,5 +72,5 @@
 
   <!-- Footer -->
   <text x="480" y="262" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="13" fill="#E2E8F0">Resume data is never sent during the HELLO handshake.</text>
-  <text x="480" y="282" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#94A3B8">Protocol checked with fixture tests. The website UI is not yet wired to the bridge, and the Gemini step is not verified live.</text>
+  <text x="480" y="282" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="#94A3B8">Protocol and generation flow checked with fixture tests. The live Gemini step and the deployed site are not verified.</text>
 </svg>

@@ -72,7 +72,7 @@ Clients must wait for the reply they need. The extension sends progress before t
 3. Submission is a separate confirmation step.
 4. Output is returned to the website only after review.
 
-Steps 2 and 3 are implemented in the bundle but were not run against a live Gemini page.
+The steps through output review run in Chromium against a fixture Gemini page (`apps/extension/tests/generate-flow.e2e.js`, 24 of 24). They have not been run against a live Gemini page.
 
 ## Verification status
 

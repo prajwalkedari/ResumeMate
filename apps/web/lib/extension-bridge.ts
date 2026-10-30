@@ -304,8 +304,11 @@ export class ExtensionBridge {
   }
 
   /** Queues a request for the user to review inside the extension. Nothing reaches Gemini here. */
-  async prepare(payload: ExtensionRequestPayload, timeoutMs = 5000): Promise<PrepareResult> {
-    const requestId = createRequestId();
+  /**
+   * Queues a request for review. The caller may pass its own request ID so that replies which
+   * arrive before this call returns (GEMINI_STATUS progress) can be matched to the request.
+   */
+  async prepare(payload: ExtensionRequestPayload, timeoutMs = 5000, requestId: string = createRequestId()): Promise<PrepareResult> {
     this.sent.add(requestId);
     this.send({ type: 'PREPARE_PROMPT', requestId, payload });
     // GEMINI_STATUS "awaiting-send-approval" arrives before REVIEW_PROMPT; it is progress, not the answer.

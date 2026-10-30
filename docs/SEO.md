@@ -12,7 +12,7 @@
 | `/` | Yes | ResumeMate: AI Resume Builder & Career Companion | Canonical, Open Graph, and Twitter card when the origin is set. |
 | `/extension` | Yes | ResumeMate Assistant Chrome extension \| ResumeMate | Canonical when the origin is set. Describes that the live connection is in development. |
 | `/create` | **No** (`noindex, nofollow`) | Resume workspace \| ResumeMate | Working page with the user's draft in memory. |
-| `/generate` | **No** (`noindex, nofollow`) | Resume workspace \| ResumeMate | Simulated progress screen. |
+| `/generate` | **No** (`noindex, nofollow`) | Resume workspace \| ResumeMate | Generation workflow with extension status. |
 | `/preview` | **No** (`noindex, nofollow`) | Resume workspace \| ResumeMate | Preview of the user's draft. |
 | Unknown routes | Not found | Next.js 404 | Returns HTTP 404. |
 

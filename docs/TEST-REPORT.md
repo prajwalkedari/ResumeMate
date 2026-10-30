@@ -10,7 +10,14 @@ Every result below comes from a command run in this pass. Older results are mark
 | --- | --- | --- |
 | Website lint | Static | PASS, 0 warnings |
 | Website typecheck | Static | PASS |
-| Website unit tests (bridge state logic, ordering, malformed replies, and PDF/LaTeX import) | Unit | PASS, 51 of 51 |
+| Website unit tests (bridge state logic, ordering, malformed replies, generation state machine, bridge subscription, and PDF/LaTeX import) | Unit | PASS, 79 of 79 |
+| Website lint after the generation work | Static | PASS, 0 warnings |
+| Website typecheck after the generation work | Static | PASS |
+| Website production build with production origin, after the generation work | Build | PASS |
+| Extension manifest verification and packaging after the generation work | Static, build | PASS (14 files) |
+| Extension protocol test (bundle) after the generation work | Chromium fixture | PASS, 25 of 25 |
+| `/extension` handshake page after the generation work | Chromium, local build | PASS, 10 of 10 |
+| Generation workflow end to end (website, unpacked extension, popup, **fixture Gemini**) | Chromium, local build | PASS, 24 of 24 |
 | Website production build, default (no origin) | Build | PASS |
 | Website production build with `NEXT_PUBLIC_SITE_ORIGIN=https://resumemate.prajwalkedari.tech` | Build | PASS |
 | Website cross-repo bridge tests (`tests/extension-bridge.test.ts`) | Unit, needs extension source | **BLOCKED**, 0 of 20 run |
@@ -20,7 +27,7 @@ Every result below comes from a command run in this pass. Older results are mark
 | Extension protocol test against the unpacked bundle, stubbed origins | Chromium fixture | PASS, 25 of 25 |
 | `/extension` page with the unpacked bundle, site served locally under the production hostname | Chromium, local build | PASS, 10 of 10 |
 | Deployed site `https://resumemate.prajwalkedari.tech` | Live | **NOT TESTED**. No response from the build sandbox. |
-| Live Gemini | Live | **NOT TESTED** |
+| Live Gemini | Live | **NOT TESTED**. The generation flow was tested only against a fixture page built to the same selectors as `content/gemini.js`. |
 
 ## Commands
 
@@ -91,7 +98,9 @@ Fixture-based: `resumemate.prajwalkedari.tech`, the old root domain, an unrelate
 | Extension disabled, or the site loaded while the extension is turned off | Not automated in this pass. Covered only by the not-detected path (no extension). |
 | Busy state through the page UI | Covered at protocol level (`busy: true`). Not reached through the page. |
 | Incompatible protocol version | Covered by unit tests only. The real bundle always replies with protocol 1. |
-| Live Gemini, popup approval, and submission | Not built into a test. |
+| Live Gemini | Not run. The popup approval, submission, and return steps are tested against a fixture page (`apps/extension/tests/generate-flow.e2e.js`). Gemini's real page may use other markup. |
+| Invalid or incompatible RETURN_OUTPUT in the browser | Covered by unit tests of the reducer (`tests/generation.test.ts`). Not produced by the bundle in the browser test. |
+| Extension disconnected in the middle of a request | Covered by unit tests of the watchdog (`tests/generation.test.ts`). Not produced in the browser test. |
 | Cross-repo bridge tests | Extension source missing. |
 | Extension TypeScript typecheck, lint, and unit tests | Extension source missing. The bundle has no tests of its own besides the browser tests above. |
 | Chrome Web Store | Not set up. |
@@ -102,3 +111,23 @@ Fixture-based: `resumemate.prajwalkedari.tech`, the old root domain, an unrelate
 2. **Extension source.** Add the TypeScript source so the origin, the handshake, and the bundle can be changed and rebuilt at source level. Until then, the bundle is edited directly.
 3. **Next.js upgrade.** The 14.2 line keeps its advisories. A migration to 15.5 or 16 is needed to clear them.
 4. **Users update the extension.** Old installs only trust the old root domain. Every user must reload or reinstall the extension.
+
+## Generation workflow (round 5)
+
+Scope: the `/extension` Continue button, the `/create` → `/generate` → `/preview` workflow, and the extension approval gates.
+
+| Test | File | Type | Result |
+| --- | --- | --- | --- |
+| Generation reducer: happy path, approval gates, invalid output, stale replies, extension errors, watchdog, retry, discard, duplicate guard | `apps/web/tests/generation.test.ts` | Unit | 26 of 26 |
+| Bridge subscribe before prepare (progress and final reply order) | `apps/web/tests/bridge-subscribe.test.ts` | Unit | 2 of 2 |
+| Bridge reply handling (round 4 tests, still passing) | `apps/web/tests/bridge-progress.test.ts` | Unit | 13 of 13 |
+| Generation workflow in Chromium with the unpacked extension and a **fixture** Gemini | `apps/extension/tests/generate-flow.e2e.js` | Browser, local build | 24 of 24 |
+
+Checks in the browser test: the Continue CTA links to `/create` and navigates there; Review on `/create` goes to `/generate`; no Gemini tab opens before approval; rejection in the popup ends as cancelled with no Gemini tab; the resume stays intact after cancel; retry, approval, and submission confirmation work; the prompt is placed in the composer; the website shows the Gemini character count only and not the text before the popup sends it; send-to-website is disabled until confirmed; the output appears for review and is not saved automatically; saving shows it in the preview under a labelled AI draft section, with the resume document unchanged; discard removes it; without the extension, the page shows installation guidance, disables Generate, and keeps the details.
+
+What this does not prove: the fixture page is not Gemini. It was built to the selectors in `content/gemini.js`. Live Gemini markup, sign-in state, and rate limits were not tested.
+
+Bugs found and fixed in this round:
+- The output panel's "Try again" called `start` while the phase was still `reviewing`, so it did nothing. Removed. "Discard and start over" returns to idle first.
+- `accepted` kept the returned text in state after it was saved. It now clears it.
+- A test-proxy bug: the browser test did not forward request headers, so Next fell back to a full reload on client navigation and dropped the in-memory resume. Fixed in the test harness, not in the app.

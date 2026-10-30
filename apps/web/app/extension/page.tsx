@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CircleCheck, Puzzle, TriangleAlert, Unplug, CircleHelp } from 'lucide-react';
+import { CircleCheck, Puzzle, TriangleAlert, Unplug, CircleHelp, ArrowRight } from 'lucide-react';
 import { Header, Button, LinkButton } from '@/components/ui';
 import { createBrowserBridge, BRIDGE_VERSION, type HelloResult } from '@/lib/extension-bridge';
 
@@ -24,7 +24,7 @@ const COPY: Record<UiState, { label: string; title: string; body: string }> = {
   connected: {
     label: 'Connected',
     title: 'ResumeMate Assistant is connected.',
-    body: 'The extension replied with a compatible protocol version. You still approve each request before anything is sent.',
+    body: 'Your browser extension is ready. You can now create a resume using your existing Gemini account. You approve each request in the extension before anything is sent.',
   },
   busy: {
     label: 'Busy',
@@ -124,14 +124,22 @@ export default function ExtensionPage() {
                 </dl>
               )}
 
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Button onClick={check} disabled={state === 'checking'} aria-busy={state === 'checking'}>
+              {state === 'connected' && (
+                <div className="mt-6">
+                  <LinkButton href="/create" className="w-full justify-center py-3 text-base sm:w-auto">
+                    Continue to Create Resume <ArrowRight size={18} aria-hidden="true" />
+                  </LinkButton>
+                </div>
+              )}
+
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Button variant="secondary" onClick={check} disabled={state === 'checking'} aria-busy={state === 'checking'}>
                   {state === 'checking' ? 'Checking...' : canRetry ? 'Retry' : state === 'idle' ? 'Check connection' : 'Check again'}
                 </Button>
                 {state === 'not-installed' && (
                   <LinkButton href={EXTENSION_INFO_URL} variant="secondary">Installation instructions</LinkButton>
                 )}
-                <LinkButton href="/create" variant="ghost">Back to the workspace</LinkButton>
+                <LinkButton href="/create" variant="ghost">Back to Workspace</LinkButton>
               </div>
             </div>
           </div>
